@@ -1,24 +1,25 @@
-//
-//  ContentView.swift
-//  strong-ai
-//
-//  Created by Tucker on 3/13/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            HomeView()
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                }
+            ExerciseLibraryView()
+                .tabItem {
+                    Label("Library", systemImage: "book.fill")
+                }
+            HistoryListView()
+                .tabItem {
+                    Label("History", systemImage: "clock.fill")
+                }
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
+                }
         }
-        .padding()
+        .tint(.black)
     }
-}
-
-#Preview {
-    ContentView()
 }

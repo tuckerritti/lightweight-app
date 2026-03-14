@@ -1,11 +1,5 @@
-//
-//  strong_aiApp.swift
-//  strong-ai
-//
-//  Created by Tucker on 3/13/26.
-//
-
 import SwiftUI
+import SwiftData
 
 @main
 struct strong_aiApp: App {
@@ -13,5 +7,11 @@ struct strong_aiApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: [
+            Exercise.self,
+            WorkoutTemplate.self,
+            WorkoutLog.self,
+            UserProfile.self,
+        ])
     }
 }
