@@ -13,6 +13,7 @@ struct ChatMessage: Identifiable {
 
 struct ChatDrawerView: View {
     @Binding var isPresented: Bool
+    @Binding var pendingMessage: String?
     var workoutName: String?
     var elapsedTime: String?
     var exerciseProgress: String?
@@ -133,6 +134,13 @@ struct ChatDrawerView: View {
             }
             .background(Color.white)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
+            .task {
+                if let message = pendingMessage {
+                    pendingMessage = nil
+                    messages.append(ChatMessage(role: .user, text: message))
+                    await streamResponse(for: message)
+                }
+            }
         }
     }
 
@@ -181,6 +189,10 @@ struct ChatDrawerView: View {
 
         messages.append(ChatMessage(role: .user, text: text))
         inputText = ""
+        await streamResponse(for: text)
+    }
+
+    private func streamResponse(for text: String) async {
         isSending = true
 
         guard let stream = await onSend(text) else {
@@ -188,7 +200,6 @@ struct ChatDrawerView: View {
             return
         }
 
-        // Add an empty assistant message that we'll stream into
         let assistantIndex = messages.count
         messages.append(ChatMessage(role: .assistant, text: ""))
 
@@ -198,7 +209,6 @@ struct ChatDrawerView: View {
                 case .text(let delta):
                     messages[assistantIndex].text += delta
                 case .result(let result):
-                    // Replace with the clean parsed explanation and mark applied
                     if !result.explanation.isEmpty {
                         messages[assistantIndex].text = result.explanation
                     }

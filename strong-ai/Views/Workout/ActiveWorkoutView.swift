@@ -19,6 +19,9 @@ struct ActiveWorkoutView: View {
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @Environment(AppState.self) private var appState
+    @State private var isChatInputActive = false
+    @State private var chatInputText = ""
+    @FocusState private var isChatBarFocused: Bool
 
     private var profile: UserProfile? { profiles.first }
     private var apiKey: String { profile?.apiKey ?? "" }
@@ -51,6 +54,7 @@ struct ActiveWorkoutView: View {
                 @Bindable var state = appState
                 ChatDrawerView(
                     isPresented: $state.isChatDrawerOpen,
+                    pendingMessage: $state.pendingMessage,
                     workoutName: viewModel.workoutName,
                     elapsedTime: viewModel.elapsedFormatted,
                     exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
@@ -210,23 +214,47 @@ struct ActiveWorkoutView: View {
     private var bottomBar: some View {
         VStack(spacing: 10) {
             if !apiKey.isEmpty {
-                // Chat bar trigger
                 HStack(spacing: 10) {
-                    Text("Add more tricep work...")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color.black.opacity(0.3))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
-                        .background(Color(hex: 0xF5F5F5))
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    if isChatInputActive {
+                        TextField("Add more tricep work...", text: $chatInputText)
+                            .font(.system(size: 14))
+                            .focused($isChatBarFocused)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(Color(hex: 0xF5F5F5))
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .onSubmit { sendFromBar() }
+                    } else {
+                        Text("Add more tricep work...")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color.black.opacity(0.3))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(Color(hex: 0xF5F5F5))
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .onTapGesture {
+                                isChatInputActive = true
+                                isChatBarFocused = true
+                            }
+                    }
 
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(Color(hex: 0x0A0A0A))
-                }
-                .onTapGesture {
-                    appState.isChatDrawerOpen = true
+                    Button {
+                        if isChatInputActive {
+                            sendFromBar()
+                        } else {
+                            isChatInputActive = true
+                            isChatBarFocused = true
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(
+                                isChatInputActive && !chatInputText.trimmingCharacters(in: .whitespaces).isEmpty
+                                ? Color(hex: 0x0A0A0A)
+                                : Color.black.opacity(0.15)
+                            )
+                    }
                 }
             }
 
@@ -250,6 +278,15 @@ struct ActiveWorkoutView: View {
     }
 
     // MARK: - Actions
+
+    private func sendFromBar() {
+        let text = chatInputText.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return }
+        appState.pendingMessage = text
+        chatInputText = ""
+        isChatInputActive = false
+        appState.isChatDrawerOpen = true
+    }
 
     private func finishWorkout() {
         let log = viewModel.finish()

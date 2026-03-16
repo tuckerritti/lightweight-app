@@ -3,6 +3,7 @@ import SwiftUI
 @Observable
 final class AppState {
     var isChatDrawerOpen = false
+    var pendingMessage: String?
 }
 
 struct ContentView: View {

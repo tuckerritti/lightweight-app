@@ -17,6 +17,9 @@ struct HomeView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var healthContext: HealthContext?
+    @State private var isChatInputActive = false
+    @State private var chatInputText = ""
+    @FocusState private var isChatBarFocused: Bool
 
     private var profile: UserProfile? { profiles.first }
     private var apiKey: String { profile?.apiKey ?? "" }
@@ -49,6 +52,7 @@ struct HomeView: View {
                     @Bindable var state = appState
                     ChatDrawerView(
                         isPresented: $state.isChatDrawerOpen,
+                        pendingMessage: $state.pendingMessage,
                         onSend: { message in
                             await streamChat(message)
                         }
@@ -347,7 +351,6 @@ struct HomeView: View {
 
     private var chatBarButton: some View {
         VStack(spacing: 0) {
-            // Drag handle hint
             RoundedRectangle(cornerRadius: 2)
                 .fill(Color.black.opacity(0.15))
                 .frame(width: 36, height: 4)
@@ -355,26 +358,60 @@ struct HomeView: View {
                 .padding(.bottom, 8)
 
             HStack(spacing: 12) {
-                Text("I only have 30 min today...")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Color.black.opacity(0.3))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 11)
-                    .background(Color(hex: 0xF5F5F5))
-                    .clipShape(RoundedRectangle(cornerRadius: 21))
+                if isChatInputActive {
+                    TextField("I only have 30 min today...", text: $chatInputText)
+                        .font(.system(size: 15))
+                        .focused($isChatBarFocused)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 11)
+                        .background(Color(hex: 0xF5F5F5))
+                        .clipShape(RoundedRectangle(cornerRadius: 21))
+                        .onSubmit { sendFromBar() }
+                } else {
+                    Text("I only have 30 min today...")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.black.opacity(0.3))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 11)
+                        .background(Color(hex: 0xF5F5F5))
+                        .clipShape(RoundedRectangle(cornerRadius: 21))
+                        .onTapGesture {
+                            isChatInputActive = true
+                            isChatBarFocused = true
+                        }
+                }
 
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 34))
-                    .foregroundStyle(Color(hex: 0x0A0A0A))
+                Button {
+                    if isChatInputActive {
+                        sendFromBar()
+                    } else {
+                        isChatInputActive = true
+                        isChatBarFocused = true
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 34))
+                        .foregroundStyle(
+                            isChatInputActive && !chatInputText.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? Color(hex: 0x0A0A0A)
+                            : Color.black.opacity(0.15)
+                        )
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 10)
         }
         .background(.ultraThinMaterial)
-        .onTapGesture {
-            appState.isChatDrawerOpen = true
-        }
+    }
+
+    private func sendFromBar() {
+        let text = chatInputText.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return }
+        appState.pendingMessage = text
+        chatInputText = ""
+        isChatInputActive = false
+        appState.isChatDrawerOpen = true
     }
 }
 
