@@ -24,9 +24,6 @@ struct ActiveWorkoutView: View {
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @Environment(AppState.self) private var appState
-    @State private var isChatInputActive = false
-    @State private var chatInputText = ""
-    @FocusState private var isChatBarFocused: Bool
 
     private var profile: UserProfile? { profiles.first }
     private var apiKey: String { profile?.apiKey ?? "" }
@@ -37,38 +34,35 @@ struct ActiveWorkoutView: View {
     }
 
     var body: some View {
-        ZStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    headerSection
-                    timerSection
+        @Bindable var state = appState
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                headerSection
+                timerSection
 
-                    ForEach(Array(viewModel.entries.enumerated()), id: \.offset) { exerciseIndex, entry in
-                        exerciseSection(exerciseIndex: exerciseIndex, entry: entry)
-                    }
+                ForEach(Array(viewModel.entries.enumerated()), id: \.offset) { exerciseIndex, entry in
+                    exerciseSection(exerciseIndex: exerciseIndex, entry: entry)
                 }
-                .padding(.bottom, 120)
             }
-            .safeAreaInset(edge: .bottom) {
-                bottomBar
-            }
-
-            if appState.isChatDrawerOpen {
-                @Bindable var state = appState
+            .padding(.bottom, 120)
+        }
+        .overlay {
+            if !apiKey.isEmpty {
                 ChatDrawerView(
-                    isPresented: $state.isChatDrawerOpen,
+                    isExpanded: $state.isChatDrawerOpen,
                     pendingMessage: $state.pendingMessage,
+                    placeholder: "Add more tricep work...",
                     workoutName: viewModel.workoutName,
                     elapsedTime: viewModel.elapsedFormatted,
                     exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
+                    collapsedHeight: 140,
                     onSend: { message in
                         await streamMidWorkoutChat(message)
                     }
-                )
-                .transition(.move(edge: .bottom))
+                ) {
+                }
             }
         }
-        .animation(.spring(duration: 0.35), value: appState.isChatDrawerOpen)
         .navigationTitle(viewModel.workoutName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden()
@@ -221,72 +215,7 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    // MARK: - Bottom Bar
-
-    private var bottomBar: some View {
-        VStack(spacing: 10) {
-            if !apiKey.isEmpty {
-                HStack(spacing: 10) {
-                    if isChatInputActive {
-                        TextField("Add more tricep work...", text: $chatInputText, axis: .vertical)
-                            .font(.system(size: 14))
-                            .lineLimit(1...5)
-                            .focused($isChatBarFocused)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .background(Color(hex: 0xF5F5F5))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .onSubmit { sendFromBar() }
-                    } else {
-                        Text("Add more tricep work...")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.black.opacity(0.3))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .background(Color(hex: 0xF5F5F5))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .onTapGesture {
-                                isChatInputActive = true
-                                isChatBarFocused = true
-                            }
-                    }
-
-                    Button {
-                        if isChatInputActive {
-                            sendFromBar()
-                        } else {
-                            isChatInputActive = true
-                            isChatBarFocused = true
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(
-                                isChatInputActive && !chatInputText.trimmingCharacters(in: .whitespaces).isEmpty
-                                ? Color(hex: 0x0A0A0A)
-                                : Color.black.opacity(0.15)
-                            )
-                    }
-                }
-            }
-
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
-    }
-
     // MARK: - Actions
-
-    private func sendFromBar() {
-        let text = chatInputText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        appState.pendingMessage = text
-        chatInputText = ""
-        isChatInputActive = false
-        appState.isChatDrawerOpen = true
-    }
 
     private func saveExercisesToLibrary(_ workoutExercises: [WorkoutExercise]) {
         ExerciseLibraryService.persist(
@@ -295,6 +224,7 @@ struct ActiveWorkoutView: View {
             modelContext: modelContext
         )
     }
+
 
     private func finishWorkout() {
         let log = viewModel.finish()

@@ -11,147 +11,196 @@ struct ChatMessage: Identifiable {
     }
 }
 
-struct ChatDrawerView: View {
-    @Binding var isPresented: Bool
+struct ChatDrawerView<CollapsedExtra: View>: View {
+    @Binding var isExpanded: Bool
     @Binding var pendingMessage: String?
+    var placeholder: String
     var workoutName: String?
     var elapsedTime: String?
     var exerciseProgress: String?
+    var collapsedHeight: CGFloat = 80
     var onSend: (String) async -> AsyncThrowingStream<ChatStreamEvent, Error>?
+    @ViewBuilder var collapsedExtra: () -> CollapsedExtra
 
     @State private var messages: [ChatMessage] = []
     @State private var inputText = ""
     @State private var isSending = false
     @FocusState private var isInputFocused: Bool
-
-    private var safeAreaBottom: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first?.safeAreaInsets.bottom ?? 0
-    }
+    @State private var barText = ""
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Dimmed background
-            Color.black.opacity(0.35)
-                .ignoresSafeArea()
-                .onTapGesture { isPresented = false }
-
-            // Drawer
-            VStack(spacing: 0) {
-                // Drag handle
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.black.opacity(0.15))
-                    .frame(width: 36, height: 4)
-                    .padding(.top, 10)
-                    .padding(.bottom, 8)
-
-                // Header
-                HStack {
-                    Text("Chat")
-                        .font(.custom("SpaceGrotesk-Bold", size: 20))
-                        .tracking(-0.4)
-                        .foregroundStyle(Color(hex: 0x0A0A0A))
-                    Spacer()
-                    Button { isPresented = false } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Color.black.opacity(0.4))
-                            .frame(width: 28, height: 28)
-                            .background(Color(hex: 0xF5F5F5))
-                            .clipShape(Circle())
-                    }
+        VStack {
+            Spacer()
+            collapsedBar
+                .background {
+                    Color.white
+                        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
+                        .ignoresSafeArea(.container, edges: .bottom)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
+        }
+        .sheet(isPresented: $isExpanded) {
+            expandedContent
+                .presentationDragIndicator(.visible)
+                .presentationDetents([.large])
+                .presentationCornerRadius(16)
+                .presentationBackground(.white)
+        }
+    }
 
-                Divider()
+    // MARK: - Collapsed Bar
 
-                // Messages
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(messages) { message in
-                                messageView(message)
-                            }
-
-                            if isSending && (messages.isEmpty || messages.last?.role == .user) {
-                                HStack(spacing: 8) {
-                                    ProgressView()
-                                    Text("Thinking...")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .id("loading")
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                    }
-                    .onChange(of: messages.count) {
-                        withAnimation {
-                            proxy.scrollTo(messages.last?.id, anchor: .bottom)
-                        }
-                    }
-                    .onChange(of: messages.last?.text) {
-                        withAnimation {
-                            proxy.scrollTo(messages.last?.id, anchor: .bottom)
-                        }
-                    }
-                    .onChange(of: isSending) {
-                        if isSending {
-                            withAnimation {
-                                proxy.scrollTo("loading", anchor: .bottom)
+    private var collapsedBar: some View {
+        VStack(spacing: 10) {
+            // Grab handle
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.black.opacity(0.15))
+                .frame(width: 36, height: 4)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+                .contentShape(Rectangle())
+                .onTapGesture { isExpanded = true }
+                .gesture(
+                    DragGesture(minimumDistance: 10)
+                        .onEnded { value in
+                            if value.translation.height < -30 {
+                                isExpanded = true
                             }
                         }
-                    }
+                )
+
+            HStack(spacing: 12) {
+                TextField(placeholder, text: $barText, axis: .vertical)
+                    .font(.system(size: 15))
+                    .lineLimit(1...5)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 11)
+                    .background(Color(hex: 0xF5F5F5))
+                    .clipShape(RoundedRectangle(cornerRadius: 21))
+                    .onSubmit { sendFromBar() }
+
+                Button {
+                    sendFromBar()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 34))
+                        .foregroundStyle(
+                            !barText.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? Color(hex: 0x0A0A0A)
+                            : Color.black.opacity(0.15)
+                        )
                 }
+                .disabled(barText.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
 
-                Divider()
+            collapsedExtra()
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
+    }
 
-                // Input
-                HStack(spacing: 12) {
-                    TextField("Ask anything...", text: $inputText, axis: .vertical)
-                        .font(.system(size: 15))
-                        .lineLimit(1...5)
-                        .focused($isInputFocused)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 11)
+    // MARK: - Expanded Content
+
+    @ViewBuilder
+    private var expandedContent: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Chat")
+                    .font(.custom("SpaceGrotesk-Bold", size: 20))
+                    .tracking(-0.4)
+                    .foregroundStyle(Color(hex: 0x0A0A0A))
+                Spacer()
+                Button { isExpanded = false } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.black.opacity(0.4))
+                        .frame(width: 28, height: 28)
                         .background(Color(hex: 0xF5F5F5))
-                        .clipShape(RoundedRectangle(cornerRadius: 21))
-                        .onSubmit { Task { await send() } }
-                        .disabled(isSending)
+                        .clipShape(Circle())
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 8)
 
-                    Button {
-                        Task { await send() }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 34))
-                            .foregroundStyle(
-                                inputText.trimmingCharacters(in: .whitespaces).isEmpty || isSending
-                                ? Color.black.opacity(0.15)
-                                : Color(hex: 0x0A0A0A)
-                            )
+            Divider()
+
+            // Messages
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(messages) { message in
+                            messageView(message)
+                        }
+
+                        if isSending && (messages.isEmpty || messages.last?.role == .user) {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Thinking...")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id("loading")
+                        }
                     }
-                    .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty || isSending)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-            }
-            .padding(.bottom, safeAreaBottom)
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.8)
-            .background {
-                Color.white
-                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
-                    .ignoresSafeArea(.container, edges: .bottom)
-            }
-            .task {
-                if let message = pendingMessage {
-                    pendingMessage = nil
-                    messages.append(ChatMessage(role: .user, text: message))
-                    await streamResponse(for: message)
+                .onChange(of: messages.count) {
+                    withAnimation {
+                        proxy.scrollTo(messages.last?.id, anchor: .bottom)
+                    }
                 }
+                .onChange(of: messages.last?.text) {
+                    withAnimation {
+                        proxy.scrollTo(messages.last?.id, anchor: .bottom)
+                    }
+                }
+                .onChange(of: isSending) {
+                    if isSending {
+                        withAnimation {
+                            proxy.scrollTo("loading", anchor: .bottom)
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            // Input
+            HStack(spacing: 12) {
+                TextField("Ask anything...", text: $inputText, axis: .vertical)
+                    .font(.system(size: 15))
+                    .lineLimit(1...5)
+                    .focused($isInputFocused)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 11)
+                    .background(Color(hex: 0xF5F5F5))
+                    .clipShape(RoundedRectangle(cornerRadius: 21))
+                    .onSubmit { Task { await send() } }
+
+                Button {
+                    Task { await send() }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 34))
+                        .foregroundStyle(
+                            inputText.trimmingCharacters(in: .whitespaces).isEmpty || isSending
+                            ? Color.black.opacity(0.15)
+                            : Color(hex: 0x0A0A0A)
+                        )
+                }
+                .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty || isSending)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .task(id: isExpanded) {
+                guard isExpanded, let message = pendingMessage else { return }
+                pendingMessage = nil
+                messages.append(ChatMessage(role: .user, text: message))
+                await streamResponse(for: message)
             }
         }
     }
@@ -193,7 +242,15 @@ struct ChatDrawerView: View {
         }
     }
 
-    // MARK: - Send
+    // MARK: - Actions
+
+    private func sendFromBar() {
+        let text = barText.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return }
+        pendingMessage = text
+        barText = ""
+        isExpanded = true
+    }
 
     private func send() async {
         let text = inputText.trimmingCharacters(in: .whitespaces)
