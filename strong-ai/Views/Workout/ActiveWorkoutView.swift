@@ -15,10 +15,12 @@ struct ActiveWorkoutView: View {
     ) private var recentLogs: [WorkoutLog]
 
     @Query private var profiles: [UserProfile]
+    @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
     let workout: Workout
     @State private var viewModel: ActiveWorkoutViewModel
     @State private var showingCancelAlert = false
+    @State private var showingFinishAlert = false
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @Environment(AppState.self) private var appState
@@ -79,16 +81,29 @@ struct ActiveWorkoutView: View {
                     if viewModel.completedSets > 0 {
                         showingCancelAlert = true
                     } else {
+                        viewModel.stop()
                         dismiss()
                     }
                 }
             }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") {
+                    showingFinishAlert = true
+                }
+                .disabled(viewModel.completedSets == 0)
+            }
         }
         .alert("Discard Workout?", isPresented: $showingCancelAlert) {
-            Button("Discard", role: .destructive) { dismiss() }
+            Button("Discard", role: .destructive) { viewModel.stop(); dismiss() }
             Button("Keep Going", role: .cancel) { }
         } message: {
             Text("You've logged \(viewModel.completedSets) sets. This can't be undone.")
+        }
+        .alert("Finish Workout?", isPresented: $showingFinishAlert) {
+            Button("Finish") { finishWorkout() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Save your workout with \(viewModel.completedSets) sets completed?")
         }
         .sheet(isPresented: $showingDebrief, onDismiss: { dismiss() }) {
             if let log = finishedLog {
@@ -114,7 +129,9 @@ struct ActiveWorkoutView: View {
             }
         }
         .onAppear {
+            viewModel.start()
             viewModel.timerService.requestPermission()
+            saveExercisesToLibrary(viewModel.currentWorkout.exercises)
         }
     }
 
@@ -197,12 +214,6 @@ struct ActiveWorkoutView: View {
                         isActive: viewModel.isActiveSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
                         onLog: { weight, reps, rpe in
                             viewModel.logSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe)
-                        },
-                        onToggleWarmup: {
-                            viewModel.entries[exerciseIndex].sets[setIndex].isWarmup.toggle()
-                        },
-                        onToggleFailure: {
-                            viewModel.entries[exerciseIndex].sets[setIndex].isFailure.toggle()
                         }
                     )
                     if setIndex < entry.sets.count - 1 {
@@ -233,6 +244,15 @@ struct ActiveWorkoutView: View {
 
     // MARK: - Actions
 
+    private func saveExercisesToLibrary(_ workoutExercises: [WorkoutExercise]) {
+        ExerciseLibraryService.persist(
+            workoutExercises: workoutExercises,
+            existingExercises: exercises,
+            modelContext: modelContext
+        )
+    }
+
+
     private func finishWorkout() {
         let log = viewModel.finish()
         modelContext.insert(log)
@@ -254,7 +274,8 @@ struct ActiveWorkoutView: View {
                 apiKey: apiKey,
                 message: message,
                 currentWorkout: currentWorkout,
-                profile: profileSnapshot
+                profile: profileSnapshot,
+                exercises: exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup) }
             )
 
             // Wrap to intercept results and apply workout changes
@@ -264,6 +285,7 @@ struct ActiveWorkoutView: View {
                         for try await event in stream {
                             if case .result(let result) = event {
                                 viewModel.applyModifiedWorkout(result.workout)
+                                saveExercisesToLibrary(result.workout.exercises)
                             }
                             continuation.yield(event)
                         }
@@ -296,6 +318,7 @@ final class ActiveWorkoutViewModel {
 
     private var workoutExercises: [WorkoutExercise]
     private var elapsedTimer: Timer?
+    private var hasStarted = false
 
     var elapsedSeconds: Int = 0
 
@@ -329,13 +352,26 @@ final class ActiveWorkoutViewModel {
                 }
             )
         }
+    }
 
+    func start() {
+        guard !hasStarted else { return }
+        hasStarted = true
+        startedAt = .now
+        elapsedSeconds = 0
+        elapsedTimer?.invalidate()
         elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
             MainActor.assumeIsolated {
                 self.elapsedSeconds = Int(Date().timeIntervalSince(self.startedAt))
             }
         }
+    }
+
+    func stop() {
+        elapsedTimer?.invalidate()
+        elapsedTimer = nil
+        timerService.stop()
     }
 
     deinit {
@@ -349,6 +385,7 @@ final class ActiveWorkoutViewModel {
     }
 
     func isActiveSet(exerciseIndex: Int, setIndex: Int) -> Bool {
+        if timerService.isRunning { return false }
         for (ei, entry) in entries.enumerated() {
             for (si, set) in entry.sets.enumerated() {
                 if set.completedAt == nil {
@@ -416,8 +453,7 @@ final class ActiveWorkoutViewModel {
     }
 
     func finish() -> WorkoutLog {
-        elapsedTimer?.invalidate()
-        timerService.stop()
+        stop()
 
         let log = WorkoutLog(
             workoutName: workoutName,

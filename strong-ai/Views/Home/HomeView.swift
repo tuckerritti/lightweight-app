@@ -84,6 +84,7 @@ struct HomeView: View {
                 healthContext: healthContext
             )
             todayWorkout = workout
+            saveExercisesToLibrary(workout.exercises)
         } catch {
             logger.error("Workout generation failed: \(error)")
             errorMessage = error.localizedDescription
@@ -100,7 +101,8 @@ struct HomeView: View {
                 apiKey: apiKey,
                 message: message,
                 currentWorkout: todayWorkout,
-                profile: profileSnapshot
+                profile: profileSnapshot,
+                exercises: exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup) }
             )
 
             return AsyncThrowingStream { continuation in
@@ -109,6 +111,7 @@ struct HomeView: View {
                         for try await event in stream {
                             if case .result(let result) = event {
                                 todayWorkout = result.workout
+                                saveExercisesToLibrary(result.workout.exercises)
                                 errorMessage = nil
                             }
                             continuation.yield(event)
@@ -155,6 +158,14 @@ struct HomeView: View {
 
     private var exerciseSnapshots: [ExerciseSnapshot] {
         exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup) }
+    }
+
+    private func saveExercisesToLibrary(_ workoutExercises: [WorkoutExercise]) {
+        ExerciseLibraryService.persist(
+            workoutExercises: workoutExercises,
+            existingExercises: exercises,
+            modelContext: modelContext
+        )
     }
 
     // MARK: - Header
