@@ -22,9 +22,6 @@ struct ActiveWorkoutView: View {
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @Environment(AppState.self) private var appState
-    @State private var isChatInputActive = false
-    @State private var chatInputText = ""
-    @FocusState private var isChatBarFocused: Bool
 
     private var profile: UserProfile? { profiles.first }
     private var apiKey: String { profile?.apiKey ?? "" }
@@ -47,26 +44,32 @@ struct ActiveWorkoutView: View {
                 }
                 .padding(.bottom, 120)
             }
-            .safeAreaInset(edge: .bottom) {
-                bottomBar
-            }
 
-            if appState.isChatDrawerOpen {
-                @Bindable var state = appState
+            @Bindable var state = appState
+            if !apiKey.isEmpty {
                 ChatDrawerView(
-                    isPresented: $state.isChatDrawerOpen,
+                    isExpanded: $state.isChatDrawerOpen,
                     pendingMessage: $state.pendingMessage,
+                    placeholder: "Add more tricep work...",
                     workoutName: viewModel.workoutName,
                     elapsedTime: viewModel.elapsedFormatted,
                     exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
                     onSend: { message in
                         await streamMidWorkoutChat(message)
                     }
-                )
-                .transition(.move(edge: .bottom))
+                ) {
+                    finishWorkoutButton
+                }
+            } else {
+                VStack {
+                    Spacer()
+                    finishWorkoutButton
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial)
+                }
             }
         }
-        .animation(.spring(duration: 0.35), value: appState.isChatDrawerOpen)
         .navigationTitle(viewModel.workoutName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden()
@@ -210,85 +213,25 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    // MARK: - Bottom Bar
+    // MARK: - Finish Button
 
-    private var bottomBar: some View {
-        VStack(spacing: 10) {
-            if !apiKey.isEmpty {
-                HStack(spacing: 10) {
-                    if isChatInputActive {
-                        TextField("Add more tricep work...", text: $chatInputText, axis: .vertical)
-                            .font(.system(size: 14))
-                            .lineLimit(1...5)
-                            .focused($isChatBarFocused)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .background(Color(hex: 0xF5F5F5))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .onSubmit { sendFromBar() }
-                    } else {
-                        Text("Add more tricep work...")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.black.opacity(0.3))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .background(Color(hex: 0xF5F5F5))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .onTapGesture {
-                                isChatInputActive = true
-                                isChatBarFocused = true
-                            }
-                    }
-
-                    Button {
-                        if isChatInputActive {
-                            sendFromBar()
-                        } else {
-                            isChatInputActive = true
-                            isChatBarFocused = true
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(
-                                isChatInputActive && !chatInputText.trimmingCharacters(in: .whitespaces).isEmpty
-                                ? Color(hex: 0x0A0A0A)
-                                : Color.black.opacity(0.15)
-                            )
-                    }
-                }
-            }
-
-            Button {
-                finishWorkout()
-            } label: {
-                Text("Finish Workout")
-                    .font(.custom("SpaceGrotesk-Bold", size: 17))
-                    .tracking(-0.2)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(viewModel.completedSets > 0 ? Color(hex: 0x34C759) : Color.black.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .disabled(viewModel.completedSets == 0)
+    private var finishWorkoutButton: some View {
+        Button {
+            finishWorkout()
+        } label: {
+            Text("Finish Workout")
+                .font(.custom("SpaceGrotesk-Bold", size: 17))
+                .tracking(-0.2)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(viewModel.completedSets > 0 ? Color(hex: 0x34C759) : Color.black.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .disabled(viewModel.completedSets == 0)
     }
 
     // MARK: - Actions
-
-    private func sendFromBar() {
-        let text = chatInputText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        appState.pendingMessage = text
-        chatInputText = ""
-        isChatInputActive = false
-        appState.isChatDrawerOpen = true
-    }
 
     private func finishWorkout() {
         let log = viewModel.finish()

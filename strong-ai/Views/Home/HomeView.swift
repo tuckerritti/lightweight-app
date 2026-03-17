@@ -20,10 +20,6 @@ struct HomeView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var healthContext: HealthContext?
-    @State private var isChatInputActive = false
-    @State private var chatInputText = ""
-    @FocusState private var isChatBarFocused: Bool
-
     private var profile: UserProfile? { profiles.first }
     private var apiKey: String { profile?.apiKey ?? "" }
 
@@ -47,23 +43,19 @@ struct HomeView: View {
                     }
                     .padding(.bottom, 100)
                 }
-                .safeAreaInset(edge: .bottom) {
-                    chatBarButton
-                }
 
-                if appState.isChatDrawerOpen {
-                    @Bindable var state = appState
-                    ChatDrawerView(
-                        isPresented: $state.isChatDrawerOpen,
-                        pendingMessage: $state.pendingMessage,
-                        onSend: { message in
-                            await streamChat(message)
-                        }
-                    )
-                    .transition(.move(edge: .bottom))
+                @Bindable var state = appState
+                ChatDrawerView(
+                    isExpanded: $state.isChatDrawerOpen,
+                    pendingMessage: $state.pendingMessage,
+                    placeholder: "I only have 30 min today...",
+                    onSend: { message in
+                        await streamChat(message)
+                    }
+                ) {
+                    // No extra collapsed content
                 }
             }
-            .animation(.spring(duration: 0.35), value: appState.isChatDrawerOpen)
             .task {
                 await generateWorkoutIfNeeded()
             }
@@ -396,73 +388,6 @@ struct HomeView: View {
         .padding(40)
     }
 
-    // MARK: - Chat Bar Button
-
-    private var chatBarButton: some View {
-        VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.black.opacity(0.15))
-                .frame(width: 36, height: 4)
-                .padding(.top, 6)
-                .padding(.bottom, 8)
-
-            HStack(spacing: 12) {
-                if isChatInputActive {
-                    TextField("I only have 30 min today...", text: $chatInputText, axis: .vertical)
-                        .font(.system(size: 15))
-                        .lineLimit(1...5)
-                        .focused($isChatBarFocused)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 11)
-                        .background(Color(hex: 0xF5F5F5))
-                        .clipShape(RoundedRectangle(cornerRadius: 21))
-                        .onSubmit { sendFromBar() }
-                } else {
-                    Text("I only have 30 min today...")
-                        .font(.system(size: 15))
-                        .foregroundStyle(Color.black.opacity(0.3))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 11)
-                        .background(Color(hex: 0xF5F5F5))
-                        .clipShape(RoundedRectangle(cornerRadius: 21))
-                        .onTapGesture {
-                            isChatInputActive = true
-                            isChatBarFocused = true
-                        }
-                }
-
-                Button {
-                    if isChatInputActive {
-                        sendFromBar()
-                    } else {
-                        isChatInputActive = true
-                        isChatBarFocused = true
-                    }
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 34))
-                        .foregroundStyle(
-                            isChatInputActive && !chatInputText.trimmingCharacters(in: .whitespaces).isEmpty
-                            ? Color(hex: 0x0A0A0A)
-                            : Color.black.opacity(0.15)
-                        )
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 10)
-        }
-        .background(.ultraThinMaterial)
-    }
-
-    private func sendFromBar() {
-        let text = chatInputText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        appState.pendingMessage = text
-        chatInputText = ""
-        isChatInputActive = false
-        appState.isChatDrawerOpen = true
-    }
 }
 
 // MARK: - Color Helper
