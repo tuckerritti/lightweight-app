@@ -24,27 +24,26 @@ struct HomeView: View {
     private var apiKey: String { profile?.apiKey ?? "" }
 
     var body: some View {
+        @Bindable var state = appState
         NavigationStack {
-            ZStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        headerSection
-                        statCards
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    headerSection
+                    statCards
 
-                        if isLoading {
-                            loadingSection
-                        } else if let error = errorMessage {
-                            errorSection(error)
-                        } else if let workout = todayWorkout {
-                            workoutSection(workout)
-                        } else {
-                            emptyWorkoutSection
-                        }
+                    if isLoading {
+                        loadingSection
+                    } else if let error = errorMessage {
+                        errorSection(error)
+                    } else if let workout = todayWorkout {
+                        workoutSection(workout)
+                    } else {
+                        emptyWorkoutSection
                     }
-                    .padding(.bottom, 100)
                 }
-
-                @Bindable var state = appState
+                .padding(.bottom, 100)
+            }
+            .overlay {
                 ChatDrawerView(
                     isExpanded: $state.isChatDrawerOpen,
                     pendingMessage: $state.pendingMessage,

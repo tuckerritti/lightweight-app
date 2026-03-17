@@ -32,20 +32,19 @@ struct ActiveWorkoutView: View {
     }
 
     var body: some View {
-        ZStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    headerSection
-                    timerSection
+        @Bindable var state = appState
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                headerSection
+                timerSection
 
-                    ForEach(Array(viewModel.entries.enumerated()), id: \.offset) { exerciseIndex, entry in
-                        exerciseSection(exerciseIndex: exerciseIndex, entry: entry)
-                    }
+                ForEach(Array(viewModel.entries.enumerated()), id: \.offset) { exerciseIndex, entry in
+                    exerciseSection(exerciseIndex: exerciseIndex, entry: entry)
                 }
-                .padding(.bottom, 120)
             }
-
-            @Bindable var state = appState
+            .padding(.bottom, 120)
+        }
+        .overlay {
             if !apiKey.isEmpty {
                 ChatDrawerView(
                     isExpanded: $state.isChatDrawerOpen,
@@ -54,6 +53,7 @@ struct ActiveWorkoutView: View {
                     workoutName: viewModel.workoutName,
                     elapsedTime: viewModel.elapsedFormatted,
                     exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
+                    collapsedHeight: 140,
                     onSend: { message in
                         await streamMidWorkoutChat(message)
                     }
