@@ -60,15 +60,6 @@ struct ActiveWorkoutView: View {
                         await streamMidWorkoutChat(message)
                     }
                 ) {
-                    finishWorkoutButton
-                }
-            } else {
-                VStack {
-                    Spacer()
-                    finishWorkoutButton
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(.ultraThinMaterial)
                 }
             }
         }
@@ -222,24 +213,6 @@ struct ActiveWorkoutView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Finish Button
-
-    private var finishWorkoutButton: some View {
-        Button {
-            finishWorkout()
-        } label: {
-            Text("Finish Workout")
-                .font(.custom("SpaceGrotesk-Bold", size: 17))
-                .tracking(-0.2)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(viewModel.completedSets > 0 ? Color(hex: 0x34C759) : Color.black.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-        }
-        .disabled(viewModel.completedSets == 0)
     }
 
     // MARK: - Actions
