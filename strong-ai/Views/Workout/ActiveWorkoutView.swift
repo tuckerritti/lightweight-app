@@ -24,6 +24,7 @@ struct ActiveWorkoutView: View {
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @State private var selectedExercise: Exercise?
+    @State private var debriefRecentLogs: [WorkoutLogSnapshot] = []
     @Environment(AppState.self) private var appState
 
     private var profile: UserProfile? { profiles.first }
@@ -64,7 +65,6 @@ struct ActiveWorkoutView: View {
                 }
             }
         }
-        .navigationTitle(viewModel.workoutName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden()
         .toolbar {
@@ -107,19 +107,15 @@ struct ActiveWorkoutView: View {
                     }
             }
         }
-        .sheet(isPresented: $showingDebrief, onDismiss: { dismiss() }) {
+        .sheet(isPresented: $showingDebrief, onDismiss: {
+            finishedLog = nil
+            debriefRecentLogs = []
+            dismiss()
+        }) {
             if let log = finishedLog {
                 WorkoutDebriefView(
                     log: log,
-                    recentLogs: recentLogs.prefix(5).map { l in
-                        WorkoutLogSnapshot(
-                            workoutName: l.workoutName,
-                            startedAt: l.startedAt,
-                            durationMinutes: l.durationMinutes,
-                            totalVolume: l.totalVolume,
-                            entries: l.entries
-                        )
-                    },
+                    recentLogs: debriefRecentLogs,
                     profile: UserProfileSnapshot(
                         goals: profile?.goals ?? "",
                         schedule: profile?.schedule ?? "",
@@ -140,33 +136,32 @@ struct ActiveWorkoutView: View {
     // MARK: - Header
 
     private var headerSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(viewModel.workoutName)
+                .font(.custom("SpaceGrotesk-Bold", size: 28))
+                .tracking(-0.84)
+                .foregroundStyle(Color(hex: 0x0A0A0A))
+            HStack(spacing: 12) {
                 Text(viewModel.elapsedFormatted)
-                    .font(.custom("SpaceGrotesk-Bold", size: 32))
-                    .tracking(-1)
-                    .foregroundStyle(Color(hex: 0x0A0A0A))
+                    .font(.custom("SpaceGrotesk-Bold", size: 15))
+                    .foregroundStyle(Color(hex: 0x34C759))
                     .contentTransition(.numericText())
-                Text("\(viewModel.completedSets)/\(viewModel.totalSets) sets completed")
+                Text("\(viewModel.completedExercises) of \(viewModel.totalExercises) exercises")
                     .font(.system(size: 13))
                     .foregroundStyle(Color.black.opacity(0.35))
             }
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 18)
     }
 
     // MARK: - Timer
 
-    @ViewBuilder
     private var timerSection: some View {
-        if viewModel.timerService.isRunning {
-            RestTimerView(timerService: viewModel.timerService)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-        }
+        RestTimerView(timerService: viewModel.timerService)
+            .padding(.horizontal, 20)
     }
 
     // MARK: - Exercise Section
@@ -176,21 +171,22 @@ struct ActiveWorkoutView: View {
             Button {
                 selectedExercise = exercises.first { $0.name == entry.exerciseName }
             } label: {
-                Text(entry.exerciseName)
-                    .font(.custom("SpaceGrotesk-Bold", size: 17))
-                    .tracking(-0.3)
-                    .foregroundStyle(Color(hex: 0x0A0A0A))
+                HStack {
+                    Text(entry.exerciseName)
+                        .font(.custom("SpaceGrotesk-Bold", size: 18))
+                        .tracking(-0.18)
+                        .foregroundStyle(Color(hex: 0x0A0A0A))
+                    Spacer()
+                    Text(entry.muscleGroup.uppercased())
+                        .font(.system(size: 12, weight: .medium))
+                        .tracking(0.72)
+                        .foregroundStyle(Color.black.opacity(0.3))
+                }
             }
+            .buttonStyle(.plain)
             .padding(.horizontal, 20)
             .padding(.top, 20)
-            .padding(.bottom, 4)
-
-            Text(entry.muscleGroup.uppercased())
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(0.5)
-                .foregroundStyle(Color.black.opacity(0.35))
-                .padding(.horizontal, 20)
-                .padding(.bottom, 10)
+            .padding(.bottom, 10)
 
             HStack(spacing: 0) {
                 Text("SET")
@@ -242,10 +238,21 @@ struct ActiveWorkoutView: View {
 
 
     private func finishWorkout() {
+        debriefRecentLogs = recentLogs.prefix(5).map(makeSnapshot)
         let log = viewModel.finish()
         modelContext.insert(log)
         finishedLog = log
         showingDebrief = true
+    }
+
+    private func makeSnapshot(from log: WorkoutLog) -> WorkoutLogSnapshot {
+        WorkoutLogSnapshot(
+            workoutName: log.workoutName,
+            startedAt: log.startedAt,
+            durationMinutes: log.durationMinutes,
+            totalVolume: log.totalVolume,
+            entries: log.entries
+        )
     }
 
     private func streamMidWorkoutChat(_ message: String) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
@@ -312,6 +319,12 @@ final class ActiveWorkoutViewModel {
 
     var totalSets: Int { entries.reduce(0) { $0 + $1.sets.count } }
     var completedSets: Int { entries.flatMap(\.sets).filter { $0.completedAt != nil }.count }
+    var totalExercises: Int { entries.count }
+    var completedExercises: Int {
+        entries.reduce(0) { count, entry in
+            entry.sets.allSatisfy { $0.completedAt != nil } ? count + 1 : count
+        }
+    }
 
     var elapsedFormatted: String {
         let m = elapsedSeconds / 60
