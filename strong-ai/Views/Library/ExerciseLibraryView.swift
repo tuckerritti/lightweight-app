@@ -18,15 +18,17 @@ struct ExerciseLibraryView: View {
 
                 List {
                     ForEach(exercises) { exercise in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(exercise.name)
-                                .font(.system(size: 15, weight: .semibold))
-                            Text(exercise.muscleGroup.uppercased())
-                                .font(.system(size: 11, weight: .semibold))
-                                .tracking(0.5)
-                                .foregroundStyle(.secondary)
+                        NavigationLink(value: exercise) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(exercise.name)
+                                    .font(.system(size: 15, weight: .semibold))
+                                Text(exercise.muscleGroup.uppercased())
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .tracking(0.5)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 2)
                         }
-                        .padding(.vertical, 2)
                     }
                     .onDelete { offsets in
                         for index in offsets {
@@ -38,6 +40,9 @@ struct ExerciseLibraryView: View {
                     if exercises.isEmpty {
                         ContentUnavailableView("No Exercises", systemImage: "dumbbell.fill", description: Text("Add exercises to build your library."))
                     }
+                }
+                .navigationDestination(for: Exercise.self) { exercise in
+                    ExerciseDetailView(exercise: exercise)
                 }
             }
             .toolbar {

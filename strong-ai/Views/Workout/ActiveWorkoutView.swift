@@ -23,6 +23,7 @@ struct ActiveWorkoutView: View {
     @State private var showingFinishAlert = false
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
+    @State private var selectedExercise: Exercise?
     @Environment(AppState.self) private var appState
 
     private var profile: UserProfile? { profiles.first }
@@ -96,6 +97,16 @@ struct ActiveWorkoutView: View {
         } message: {
             Text("Save your workout with \(viewModel.completedSets) sets completed?")
         }
+        .sheet(item: $selectedExercise) { exercise in
+            NavigationStack {
+                ExerciseDetailView(exercise: exercise)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { selectedExercise = nil }
+                        }
+                    }
+            }
+        }
         .sheet(isPresented: $showingDebrief, onDismiss: { dismiss() }) {
             if let log = finishedLog {
                 WorkoutDebriefView(
@@ -162,13 +173,17 @@ struct ActiveWorkoutView: View {
 
     private func exerciseSection(exerciseIndex: Int, entry: LogEntry) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(entry.exerciseName)
-                .font(.custom("SpaceGrotesk-Bold", size: 17))
-                .tracking(-0.3)
-                .foregroundStyle(Color(hex: 0x0A0A0A))
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 4)
+            Button {
+                selectedExercise = exercises.first { $0.name == entry.exerciseName }
+            } label: {
+                Text(entry.exerciseName)
+                    .font(.custom("SpaceGrotesk-Bold", size: 17))
+                    .tracking(-0.3)
+                    .foregroundStyle(Color(hex: 0x0A0A0A))
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 4)
 
             Text(entry.muscleGroup.uppercased())
                 .font(.system(size: 11, weight: .semibold))
