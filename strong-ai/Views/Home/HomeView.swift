@@ -46,15 +46,13 @@ struct HomeView: View {
             }
             .overlay {
                 ChatDrawerView(
-                    isExpanded: $state.isChatDrawerOpen,
+                    selectedDetent: $state.chatDetent,
                     pendingMessage: $state.pendingMessage,
                     placeholder: "I only have 30 min today...",
                     onSend: { message in
                         await streamChat(message)
                     }
-                ) {
-                    // No extra collapsed content
-                }
+                )
             }
             .task {
                 await generateWorkoutIfNeeded()

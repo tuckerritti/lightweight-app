@@ -11,167 +11,120 @@ struct ChatMessage: Identifiable {
     }
 }
 
-struct ChatDrawerView<CollapsedExtra: View>: View {
-    @Binding var isExpanded: Bool
+struct ChatDrawerView: View {
+    @Binding var selectedDetent: PresentationDetent
     @Binding var pendingMessage: String?
     var placeholder: String
     var workoutName: String?
     var elapsedTime: String?
     var exerciseProgress: String?
-    var collapsedHeight: CGFloat = 80
     var onSend: (String) async -> AsyncThrowingStream<ChatStreamEvent, Error>?
-    @ViewBuilder var collapsedExtra: () -> CollapsedExtra
 
     @State private var messages: [ChatMessage] = []
     @State private var inputText = ""
     @State private var isSending = false
     @FocusState private var isInputFocused: Bool
-    @State private var barText = ""
+
+    private let smallDetent: PresentationDetent = .height(90)
 
     var body: some View {
-        VStack {
-            Spacer()
-            collapsedBar
-                .background {
-                    Color.white
-                        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
-                        .ignoresSafeArea(.container, edges: .bottom)
-                }
-        }
-        .sheet(isPresented: $isExpanded) {
-            expandedContent
-                .presentationDragIndicator(.visible)
-                .presentationDetents([.large])
-                .presentationCornerRadius(16)
-                .presentationBackground(.white)
-        }
+        Color.clear
+            .sheet(isPresented: .constant(true)) {
+                sheetContent
+                    .presentationDetents(
+                        [smallDetent, .medium, .large],
+                        selection: $selectedDetent
+                    )
+                    .presentationDragIndicator(.hidden)
+                    .presentationCornerRadius(44)
+                    .presentationBackground(.white)
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                    .presentationContentInteraction(.scrolls)
+                    .interactiveDismissDisabled()
+            }
     }
 
-    // MARK: - Collapsed Bar
+    // MARK: - Sheet Content
 
-    private var collapsedBar: some View {
-        VStack(spacing: 10) {
+    private var sheetContent: some View {
+        VStack(spacing: 0) {
             // Grab handle
             RoundedRectangle(cornerRadius: 2)
                 .fill(Color.black.opacity(0.15))
                 .frame(width: 36, height: 4)
-                .frame(maxWidth: .infinity)
                 .padding(.top, 8)
                 .padding(.bottom, 4)
-                .contentShape(Rectangle())
-                .onTapGesture { isExpanded = true }
-                .gesture(
-                    DragGesture(minimumDistance: 10)
-                        .onEnded { value in
-                            if value.translation.height < -30 {
-                                isExpanded = true
+
+            if selectedDetent != smallDetent {
+                // Header
+                HStack {
+                    Text("Chat")
+                        .font(.custom("SpaceGrotesk-Bold", size: 20))
+                        .tracking(-0.4)
+                        .foregroundStyle(Color(hex: 0x0A0A0A))
+                    Spacer()
+                    Button { selectedDetent = smallDetent } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Color.black.opacity(0.4))
+                            .frame(width: 28, height: 28)
+                            .background(Color(hex: 0xF5F5F5))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
+
+                Divider()
+
+                // Messages
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(messages) { message in
+                                messageView(message)
+                            }
+
+                            if isSending && (messages.isEmpty || messages.last?.role == .user) {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                    Text("Thinking...")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .id("loading")
                             }
                         }
-                )
-
-            HStack(spacing: 12) {
-                TextField(placeholder, text: $barText, axis: .vertical)
-                    .font(.system(size: 15))
-                    .lineLimit(1...5)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 11)
-                    .background(Color(hex: 0xF5F5F5))
-                    .clipShape(RoundedRectangle(cornerRadius: 21))
-                    .onSubmit { sendFromBar() }
-
-                Button {
-                    sendFromBar()
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 34))
-                        .foregroundStyle(
-                            !barText.trimmingCharacters(in: .whitespaces).isEmpty
-                            ? Color(hex: 0x0A0A0A)
-                            : Color.black.opacity(0.15)
-                        )
-                }
-                .disabled(barText.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-
-            collapsedExtra()
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 10)
-    }
-
-    // MARK: - Expanded Content
-
-    @ViewBuilder
-    private var expandedContent: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Chat")
-                    .font(.custom("SpaceGrotesk-Bold", size: 20))
-                    .tracking(-0.4)
-                    .foregroundStyle(Color(hex: 0x0A0A0A))
-                Spacer()
-                Button { isExpanded = false } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Color.black.opacity(0.4))
-                        .frame(width: 28, height: 28)
-                        .background(Color(hex: 0xF5F5F5))
-                        .clipShape(Circle())
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 8)
-
-            Divider()
-
-            // Messages
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(messages) { message in
-                            messageView(message)
-                        }
-
-                        if isSending && (messages.isEmpty || messages.last?.role == .user) {
-                            HStack(spacing: 8) {
-                                ProgressView()
-                                Text("Thinking...")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .id("loading")
-                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                }
-                .onChange(of: messages.count) {
-                    withAnimation {
-                        proxy.scrollTo(messages.last?.id, anchor: .bottom)
-                    }
-                }
-                .onChange(of: messages.last?.text) {
-                    withAnimation {
-                        proxy.scrollTo(messages.last?.id, anchor: .bottom)
-                    }
-                }
-                .onChange(of: isSending) {
-                    if isSending {
+                    .onChange(of: messages.count) {
                         withAnimation {
-                            proxy.scrollTo("loading", anchor: .bottom)
+                            proxy.scrollTo(messages.last?.id, anchor: .bottom)
+                        }
+                    }
+                    .onChange(of: messages.last?.text) {
+                        withAnimation {
+                            proxy.scrollTo(messages.last?.id, anchor: .bottom)
+                        }
+                    }
+                    .onChange(of: isSending) {
+                        if isSending {
+                            withAnimation {
+                                proxy.scrollTo("loading", anchor: .bottom)
+                            }
                         }
                     }
                 }
+
+                Divider()
             }
 
-            Divider()
-
-            // Input
+            // Input bar (always visible)
             HStack(spacing: 12) {
-                TextField("Ask anything...", text: $inputText, axis: .vertical)
+                TextField(placeholder, text: $inputText, axis: .vertical)
                     .font(.system(size: 15))
                     .lineLimit(1...5)
                     .focused($isInputFocused)
@@ -196,12 +149,13 @@ struct ChatDrawerView<CollapsedExtra: View>: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
-            .task(id: isExpanded) {
-                guard isExpanded, let message = pendingMessage else { return }
-                pendingMessage = nil
-                messages.append(ChatMessage(role: .user, text: message))
-                await streamResponse(for: message)
-            }
+        }
+        .onChange(of: pendingMessage) { _, newValue in
+            guard let message = newValue else { return }
+            pendingMessage = nil
+            messages.append(ChatMessage(role: .user, text: message))
+            selectedDetent = .medium
+            Task { await streamResponse(for: message) }
         }
     }
 
@@ -244,20 +198,13 @@ struct ChatDrawerView<CollapsedExtra: View>: View {
 
     // MARK: - Actions
 
-    private func sendFromBar() {
-        let text = barText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        pendingMessage = text
-        barText = ""
-        isExpanded = true
-    }
-
     private func send() async {
         let text = inputText.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
 
         messages.append(ChatMessage(role: .user, text: text))
         inputText = ""
+        selectedDetent = .medium
         await streamResponse(for: text)
     }
 

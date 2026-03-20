@@ -2,7 +2,7 @@ import SwiftUI
 
 @Observable
 final class AppState {
-    var isChatDrawerOpen = false
+    var chatDetent: PresentationDetent = .height(90)
     var pendingMessage: String?
 }
 
@@ -12,7 +12,7 @@ struct ContentView: View {
     var body: some View {
         TabView {
             HomeView()
-                .toolbar(appState.isChatDrawerOpen ? .hidden : .visible, for: .tabBar)
+                .toolbar(appState.chatDetent == .large ? .hidden : .visible, for: .tabBar)
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
