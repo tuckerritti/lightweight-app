@@ -174,13 +174,13 @@ struct ActiveWorkoutView: View {
 
             HStack(spacing: 0) {
                 Text("SET")
-                    .frame(width: 40, alignment: .leading)
+                    .frame(width: 48, alignment: .leading)
                 Text("LBS")
-                    .frame(width: 76, alignment: .center)
+                    .frame(width: 96, alignment: .center)
                 Text("REPS")
-                    .frame(width: 64, alignment: .center)
+                    .frame(width: 80, alignment: .center)
                 Text("RPE")
-                    .frame(width: 42, alignment: .center)
+                    .frame(width: 56, alignment: .center)
                 Spacer()
             }
             .font(.system(size: 11, weight: .semibold))

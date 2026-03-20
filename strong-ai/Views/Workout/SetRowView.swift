@@ -20,7 +20,7 @@ struct SetRowView: View {
                 Text("\(setNumber)")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(isCompleted ? Color(hex: 0x34C759) : Color.black.opacity(0.4))
-                    .frame(width: 40, alignment: .leading)
+                    .frame(width: 48, alignment: .leading)
 
                 if isCompleted {
                     completedRow
@@ -54,13 +54,13 @@ struct SetRowView: View {
         Group {
             Text(weightText)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 76, alignment: .center)
+                .frame(width: 96, alignment: .center)
             Text(repsText)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 64, alignment: .center)
+                .frame(width: 80, alignment: .center)
             Text(rpeText.isEmpty ? "—" : rpeText)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 42, alignment: .center)
+                .frame(width: 56, alignment: .center)
 
             Spacer()
 
@@ -79,7 +79,7 @@ struct SetRowView: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 76)
+                .frame(width: 96)
                 .padding(.vertical, 8)
                 .background(Color(hex: 0xF5F5F5))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -88,7 +88,7 @@ struct SetRowView: View {
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 64)
+                .frame(width: 80)
                 .padding(.vertical, 8)
                 .background(Color(hex: 0xF5F5F5))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -97,7 +97,7 @@ struct SetRowView: View {
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 42)
+                .frame(width: 56)
                 .padding(.vertical, 8)
                 .background(Color(hex: 0xF5F5F5))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -125,15 +125,15 @@ struct SetRowView: View {
             Text(plannedSet.map { "\(Int($0.weight))" } ?? "—")
                 .font(.system(size: 14))
                 .foregroundStyle(Color.black.opacity(0.2))
-                .frame(width: 76, alignment: .center)
+                .frame(width: 96, alignment: .center)
             Text(plannedSet.map { "\($0.reps)" } ?? "—")
                 .font(.system(size: 14))
                 .foregroundStyle(Color.black.opacity(0.2))
-                .frame(width: 64, alignment: .center)
+                .frame(width: 80, alignment: .center)
             Text("—")
                 .font(.system(size: 14))
                 .foregroundStyle(Color.black.opacity(0.2))
-                .frame(width: 42, alignment: .center)
+                .frame(width: 56, alignment: .center)
 
             Spacer()
 
