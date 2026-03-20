@@ -46,9 +46,17 @@ struct SetRowView: View {
         .onAppear {
             guard !didInit else { return }
             didInit = true
-            if let ps = plannedSet {
-                weightText = ps.weight > 0 ? "\(Int(ps.weight))" : ""
-                repsText = "\(ps.reps)"
+            syncDisplayedValues()
+        }
+        .onChange(of: logSet.weight) {
+            syncPendingValues()
+        }
+        .onChange(of: logSet.reps) {
+            syncPendingValues()
+        }
+        .onChange(of: logSet.rpe) {
+            if isCompleted {
+                rpeText = logSet.rpe.map(String.init) ?? ""
             }
         }
     }
@@ -98,7 +106,7 @@ struct SetRowView: View {
                 .background(Color(hex: 0xF5F5F5))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            TextField("—", text: $rpeText)
+            TextField(plannedSet?.targetRpe.map { "@\($0)" } ?? "—", text: $rpeText)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 14, weight: .medium))
@@ -135,7 +143,7 @@ struct SetRowView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(Color.black.opacity(0.2))
                 .frame(width: 64, alignment: .center)
-            Text("—")
+            Text(plannedSet?.targetRpe.map { "@\($0)" } ?? "—")
                 .font(.system(size: 14))
                 .foregroundStyle(Color.black.opacity(0.2))
                 .frame(width: 42, alignment: .center)
@@ -152,5 +160,17 @@ struct SetRowView: View {
     private var previousText: String {
         guard let ps = plannedSet else { return "—" }
         return "\(Int(ps.weight))×\(ps.reps)"
+    }
+
+    private func syncDisplayedValues() {
+        weightText = logSet.weight > 0 ? "\(Int(logSet.weight))" : ""
+        repsText = "\(logSet.reps)"
+        rpeText = logSet.rpe.map(String.init) ?? ""
+    }
+
+    private func syncPendingValues() {
+        guard !isCompleted else { return }
+        weightText = logSet.weight > 0 ? "\(Int(logSet.weight))" : ""
+        repsText = "\(logSet.reps)"
     }
 }

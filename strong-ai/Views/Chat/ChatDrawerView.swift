@@ -19,7 +19,7 @@ struct ChatDrawerView<CollapsedExtra: View>: View {
     var elapsedTime: String?
     var exerciseProgress: String?
     var collapsedHeight: CGFloat = 80
-    var onSend: (String) async -> AsyncThrowingStream<ChatStreamEvent, Error>?
+    var onSend: (String, [ChatMessage]) async -> AsyncThrowingStream<ChatStreamEvent, Error>?
     @ViewBuilder var collapsedExtra: () -> CollapsedExtra
 
     @State private var messages: [ChatMessage] = []
@@ -264,7 +264,9 @@ struct ChatDrawerView<CollapsedExtra: View>: View {
     private func streamResponse(for text: String) async {
         isSending = true
 
-        guard let stream = await onSend(text) else {
+        // Pass prior messages as history (exclude the just-appended user message)
+        let history = Array(messages.dropLast())
+        guard let stream = await onSend(text, history) else {
             isSending = false
             return
         }

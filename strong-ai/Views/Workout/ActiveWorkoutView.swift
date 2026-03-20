@@ -57,8 +57,8 @@ struct ActiveWorkoutView: View {
                     elapsedTime: viewModel.elapsedFormatted,
                     exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
                     collapsedHeight: 140,
-                    onSend: { message in
-                        await streamMidWorkoutChat(message)
+                    onSend: { message, history in
+                        await streamMidWorkoutChat(message, history: history)
                     }
                 ) {
                 }
@@ -239,7 +239,7 @@ struct ActiveWorkoutView: View {
         )
     }
 
-    private func streamMidWorkoutChat(_ message: String) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
+    private func streamMidWorkoutChat(_ message: String, history: [ChatMessage]) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
         let currentWorkout = viewModel.currentWorkout
         let profileSnapshot = UserProfileSnapshot(
             goals: profile?.goals ?? "",
@@ -254,7 +254,9 @@ struct ActiveWorkoutView: View {
                 message: message,
                 currentWorkout: currentWorkout,
                 profile: profileSnapshot,
-                exercises: exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup) }
+                exercises: exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup) },
+                history: history,
+                progress: viewModel.entries
             )
 
             // Wrap to intercept results and apply workout changes
@@ -387,21 +389,43 @@ final class ActiveWorkoutViewModel {
         entries[exerciseIndex].sets[setIndex].rpe = rpe
         entries[exerciseIndex].sets[setIndex].completedAt = .now
 
+        if exerciseIndex < workoutExercises.count,
+           setIndex < workoutExercises[exerciseIndex].sets.count {
+            // Keep prompt context aligned with what the user actually completed.
+            workoutExercises[exerciseIndex].sets[setIndex].weight = weight
+            workoutExercises[exerciseIndex].sets[setIndex].reps = reps
+        }
+
         if let ps = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex) {
             timerService.start(seconds: ps.restSeconds)
+        }
+
+        // Auto-adjust remaining sets based on RPE vs target
+        if let actualRpe = rpe, let targetRpe = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)?.targetRpe,
+           let newWeight = RPEAdjustmentService.adjustedWeight(actualRpe: actualRpe, targetRpe: targetRpe, currentWeight: weight) {
+            for i in (setIndex + 1)..<entries[exerciseIndex].sets.count {
+                if entries[exerciseIndex].sets[i].completedAt == nil {
+                    entries[exerciseIndex].sets[i].weight = newWeight
+                    if i < workoutExercises[exerciseIndex].sets.count {
+                        workoutExercises[exerciseIndex].sets[i].weight = newWeight
+                    }
+                }
+            }
         }
     }
 
     func applyModifiedWorkout(_ newWorkout: Workout) {
         workoutName = newWorkout.name
-        workoutExercises = newWorkout.exercises
 
         var updatedEntries: [LogEntry] = []
+        var updatedExercises: [WorkoutExercise] = []
+        var matchedExistingIndices = Set<Int>()
 
         for newExercise in newWorkout.exercises {
             if let existingIndex = entries.firstIndex(where: { $0.exerciseName == newExercise.name }) {
+                matchedExistingIndices.insert(existingIndex)
                 let existing = entries[existingIndex]
-                let completedSets = existing.sets.filter { $0.completedAt != nil }
+                let completedSets = completedPrefix(from: existing.sets)
 
                 if !completedSets.isEmpty {
                     var sets = completedSets
@@ -418,12 +442,14 @@ final class ActiveWorkoutViewModel {
                         muscleGroup: existing.muscleGroup,
                         sets: sets
                     ))
+                    updatedExercises.append(mergedExercise(newExercise, existingIndex: existingIndex, completedSets: completedSets))
                 } else {
                     updatedEntries.append(LogEntry(
                         exerciseName: newExercise.name,
                         muscleGroup: newExercise.muscleGroup,
                         sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight) }
                     ))
+                    updatedExercises.append(newExercise)
                 }
             } else {
                 updatedEntries.append(LogEntry(
@@ -431,10 +457,102 @@ final class ActiveWorkoutViewModel {
                     muscleGroup: newExercise.muscleGroup,
                     sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight) }
                 ))
+                updatedExercises.append(newExercise)
             }
         }
 
+        var preservedCompletedEntries: [(Int, LogEntry, WorkoutExercise)] = []
+        for (index, entry) in entries.enumerated() {
+            guard !matchedExistingIndices.contains(index) else { continue }
+
+            let completedSets = completedPrefix(from: entry.sets)
+            guard !completedSets.isEmpty else { continue }
+
+            let preservedEntry = LogEntry(
+                exerciseName: entry.exerciseName,
+                muscleGroup: entry.muscleGroup,
+                sets: completedSets
+            )
+
+            let preservedExercise = completedExercise(
+                exerciseName: entry.exerciseName,
+                muscleGroup: entry.muscleGroup,
+                existingIndex: index,
+                completedSets: completedSets
+            )
+
+            preservedCompletedEntries.append((index, preservedEntry, preservedExercise))
+        }
+
+        for (index, preservedEntry, preservedExercise) in preservedCompletedEntries {
+            let entryInsertIndex = min(index, updatedEntries.count)
+            updatedEntries.insert(preservedEntry, at: entryInsertIndex)
+
+            let exerciseInsertIndex = min(index, updatedExercises.count)
+            updatedExercises.insert(preservedExercise, at: exerciseInsertIndex)
+        }
+
+        workoutExercises = updatedExercises
         entries = updatedEntries
+    }
+
+    private func completedPrefix(from sets: [LogSet]) -> [LogSet] {
+        Array(sets.prefix { $0.completedAt != nil })
+    }
+
+    private func mergedExercise(
+        _ newExercise: WorkoutExercise,
+        existingIndex: Int,
+        completedSets: [LogSet]
+    ) -> WorkoutExercise {
+        let actualCompletedSets = completedSets.enumerated().map { setIndex, completedSet in
+            workoutSet(
+                from: completedSet,
+                fallback: setIndex < newExercise.sets.count
+                    ? newExercise.sets[setIndex]
+                    : plannedExercise(at: existingIndex)?.sets[safe: setIndex]
+            )
+        }
+
+        let remainingSets = Array(newExercise.sets.dropFirst(completedSets.count))
+
+        return WorkoutExercise(
+            name: newExercise.name,
+            muscleGroup: newExercise.muscleGroup,
+            sets: actualCompletedSets + remainingSets
+        )
+    }
+
+    private func completedExercise(
+        exerciseName: String,
+        muscleGroup: String,
+        existingIndex: Int,
+        completedSets: [LogSet]
+    ) -> WorkoutExercise {
+        let plannedExercise = plannedExercise(at: existingIndex)
+        let actualCompletedSets = completedSets.enumerated().map { setIndex, completedSet in
+            workoutSet(from: completedSet, fallback: plannedExercise?.sets[safe: setIndex])
+        }
+
+        return WorkoutExercise(
+            name: exerciseName,
+            muscleGroup: muscleGroup,
+            sets: actualCompletedSets
+        )
+    }
+
+    private func plannedExercise(at index: Int) -> WorkoutExercise? {
+        guard index < workoutExercises.count else { return nil }
+        return workoutExercises[index]
+    }
+
+    private func workoutSet(from completedSet: LogSet, fallback plannedSet: WorkoutSet?) -> WorkoutSet {
+        WorkoutSet(
+            reps: completedSet.reps,
+            weight: completedSet.weight,
+            restSeconds: plannedSet?.restSeconds ?? 90,
+            targetRpe: plannedSet?.targetRpe
+        )
     }
 
     func finish() -> WorkoutLog {
@@ -447,5 +565,12 @@ final class ActiveWorkoutViewModel {
         )
         log.finishedAt = .now
         return log
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        guard indices.contains(index) else { return nil }
+        return self[index]
     }
 }
