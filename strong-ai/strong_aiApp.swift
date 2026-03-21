@@ -10,10 +10,8 @@ struct strong_aiApp: App {
         self.container = container
 
         #if DEBUG
-        if !UserDefaults.standard.bool(forKey: "hasSeededData") {
-            SeedData.populate(container.mainContext)
-            UserDefaults.standard.set(true, forKey: "hasSeededData")
-        }
+        SeedData.clearAll(container.mainContext)
+        SeedData.populate(container.mainContext)
         #endif
     }
 

@@ -2,6 +2,12 @@ import Foundation
 import SwiftData
 
 enum SeedData {
+    static func clearAll(_ context: ModelContext) {
+        try? context.delete(model: Exercise.self)
+        try? context.delete(model: WorkoutLog.self)
+        try? context.delete(model: UserProfile.self)
+    }
+
     static func populate(_ context: ModelContext) {
         // MARK: - Exercises
 
