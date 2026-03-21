@@ -14,6 +14,16 @@ xcodebuild -project strong-ai.xcodeproj -scheme strong-ai \
 
 Requires Xcode 16.3+ and iOS 18.0+ deployment target. Single SPM dependency: AnthropicSwiftSDK (v0.14.0+).
 
+## Simulator Testing
+
+Each worktree gets its own simulator so agents can QA test in parallel.
+
+**Setup:** Run `./scripts/setup-simulator.sh` from the worktree root. This clones an iPhone 17 Pro simulator, builds the app, and installs it. The simulator UDID is saved to `.context/simulator-udid.txt`.
+
+**Using MCP tools:** Read the UDID from `.context/simulator-udid.txt` and pass it as the `udid` parameter to all iOS simulator MCP tools (`ui_tap`, `ui_view`, `screenshot`, `ui_describe_all`, etc.).
+
+**Rebuilding:** Run the script again after code changes — it reuses the existing simulator and rebuilds.
+
 ## Architecture
 
 SwiftUI + SwiftData iOS app. AI-powered workout generator that uses Claude API (BYOK) and HealthKit for recovery-aware programming.
@@ -40,7 +50,7 @@ SwiftData models are `@MainActor`. To pass them to async services, views create 
 
 ### Seed Data
 
-`SeedData.populate(_:)` fills a `ModelContext` with realistic dummy data (10 exercises, 8 workout logs over 4 weeks with progressive overload, 1 user profile). Auto-runs on first DEBUG launch via UserDefaults flag. `ModelContainer.preview` provides an in-memory seeded container for SwiftUI previews.
+`SeedData.populate(_:)` fills a `ModelContext` with realistic dummy data (10 exercises, 8 workout logs over 4 weeks with progressive overload, 1 user profile). Auto-runs on every DEBUG launch. `ModelContainer.preview` provides an in-memory seeded container for SwiftUI previews.
 
 ## Key Conventions
 
