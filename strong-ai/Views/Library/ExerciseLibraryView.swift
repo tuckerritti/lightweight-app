@@ -14,15 +14,16 @@ struct ExerciseLibraryView: View {
     @State private var showingSearch = false
     @State private var showingAddExercise = false
 
-    // MARK: - Computed Properties
-
     private var exerciseStatsMap: [String: ExerciseStats] {
         var map: [String: ExerciseStats] = [:]
         for log in workoutLogs {
             for entry in log.entries {
+                let completedSets = entry.sets.filter { $0.completedAt != nil }
+                guard !completedSets.isEmpty else { continue }
+
                 var stats = map[entry.exerciseName, default: ExerciseStats()]
                 stats.timesPerformed += 1
-                let maxWeight = entry.sets.compactMap({ $0.completedAt != nil ? $0.weight : nil }).max() ?? 0
+                let maxWeight = completedSets.map(\.weight).max() ?? 0
                 if maxWeight > stats.bestWeight { stats.bestWeight = maxWeight }
                 map[entry.exerciseName] = stats
             }
@@ -47,8 +48,6 @@ struct ExerciseLibraryView: View {
         Set(exercises.map(\.muscleGroup)).count
     }
 
-    // MARK: - Body
-
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
@@ -58,9 +57,11 @@ struct ExerciseLibraryView: View {
                     ForEach(groupedExercises, id: \.0) { group, groupExercises in
                         Section {
                             ForEach(groupExercises) { exercise in
-                                exerciseRow(exercise)
-                                    .listRowSeparator(.hidden)
-                                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                                NavigationLink(value: exercise) {
+                                    exerciseRow(exercise)
+                                }
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                             }
                             .onDelete { offsets in
                                 for index in offsets {
@@ -75,17 +76,22 @@ struct ExerciseLibraryView: View {
                 .listStyle(.plain)
                 .overlay {
                     if exercises.isEmpty {
-                        ContentUnavailableView("No Exercises", systemImage: "dumbbell.fill", description: Text("Add exercises to build your library."))
+                        ContentUnavailableView(
+                            "No Exercises",
+                            systemImage: "dumbbell.fill",
+                            description: Text("Add exercises to build your library.")
+                        )
                     }
                 }
+            }
+            .navigationDestination(for: Exercise.self) { exercise in
+                ExerciseDetailView(exercise: exercise)
             }
             .sheet(isPresented: $showingAddExercise) {
                 AddExerciseSheet()
             }
         }
     }
-
-    // MARK: - Subviews
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -99,17 +105,6 @@ struct ExerciseLibraryView: View {
 
                 HStack(spacing: 10) {
                     Button {
-                        showingAddExercise = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(Color(hex: 0x1A1A1A))
-                            .frame(width: 36, height: 36)
-                            .background(Color(hex: 0xF0F0F0))
-                            .clipShape(Circle())
-                    }
-
-                    Button {
                         withAnimation(.easeOut(duration: 0.15)) { showingSearch.toggle() }
                         if !showingSearch { searchText = "" }
                     } label: {
@@ -120,8 +115,18 @@ struct ExerciseLibraryView: View {
                             .background(Color(hex: 0xF0F0F0))
                             .clipShape(Circle())
                     }
-                }
 
+                    Button {
+                        showingAddExercise = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(Color(hex: 0x1A1A1A))
+                            .frame(width: 36, height: 36)
+                            .background(Color(hex: 0xF0F0F0))
+                            .clipShape(Circle())
+                    }
+                }
             }
             .padding(.top, 20)
             .padding(.horizontal, 20)
@@ -165,19 +170,17 @@ struct ExerciseLibraryView: View {
                         .foregroundStyle(Color(hex: 0x1A1A1A))
 
                     if let stats, stats.timesPerformed > 0 {
-                        Text(stats.bestWeight > 0
-                             ? "\(stats.timesPerformed) times · Best: \(Int(stats.bestWeight)) lbs"
-                             : "\(stats.timesPerformed) times")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color(hex: 0x999999))
+                        Text(
+                            stats.bestWeight > 0
+                                ? "\(stats.timesPerformed) times · Best: \(Int(stats.bestWeight)) lbs"
+                                : "\(stats.timesPerformed) times"
+                        )
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(hex: 0x999999))
                     }
                 }
 
                 Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.black.opacity(0.2))
             }
             .padding(.vertical, 12)
 
@@ -225,6 +228,7 @@ private struct AddExerciseSheet: View {
                             .foregroundStyle(.red)
                     }
                 }
+
                 Section("Muscle Group") {
                     TextField("Or type your own...", text: $muscleGroup)
                     ScrollView(.horizontal, showsIndicators: false) {
