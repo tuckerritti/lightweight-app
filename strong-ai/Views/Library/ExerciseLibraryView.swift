@@ -14,6 +14,8 @@ struct ExerciseLibraryView: View {
     @State private var showingSearch = false
     @State private var showingAddExercise = false
 
+    // MARK: - Computed Properties
+
     private var exerciseStatsMap: [String: ExerciseStats] {
         var map: [String: ExerciseStats] = [:]
         for log in workoutLogs {
@@ -47,6 +49,8 @@ struct ExerciseLibraryView: View {
     private var muscleGroupCount: Int {
         Set(exercises.map(\.muscleGroup)).count
     }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
@@ -92,6 +96,8 @@ struct ExerciseLibraryView: View {
             }
         }
     }
+
+    // MARK: - Subviews
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -192,7 +198,6 @@ struct ExerciseLibraryView: View {
 }
 
 private struct AddExerciseSheet: View {
-    @Query(sort: \Exercise.name) private var exercises: [Exercise]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -200,35 +205,10 @@ private struct AddExerciseSheet: View {
 
     private let commonGroups = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Quads", "Hamstrings", "Glutes", "Calves", "Core", "Forearms"]
 
-    private var trimmedName: String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var trimmedMuscleGroup: String {
-        muscleGroup.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var hasDuplicateName: Bool {
-        ExerciseLibraryService.containsExercise(named: trimmedName, existingExercises: exercises)
-    }
-
-    private var canAddExercise: Bool {
-        !trimmedName.isEmpty && !trimmedMuscleGroup.isEmpty && !hasDuplicateName
-    }
-
     var body: some View {
         NavigationStack {
             Form {
-                VStack(alignment: .leading, spacing: 8) {
-                    TextField("Exercise name", text: $name)
-
-                    if hasDuplicateName {
-                        Text("Exercise already exists in your library.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.red)
-                    }
-                }
-
+                TextField("Exercise name", text: $name)
                 Section("Muscle Group") {
                     TextField("Or type your own...", text: $muscleGroup)
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -252,18 +232,15 @@ private struct AddExerciseSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        let didInsert = ExerciseLibraryService.addExercise(
-                            name: trimmedName,
-                            muscleGroup: trimmedMuscleGroup,
-                            existingExercises: exercises,
-                            modelContext: modelContext
-                        )
-
-                        if didInsert {
-                            dismiss()
-                        }
+                        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let trimmedGroup = muscleGroup.trimmingCharacters(in: .whitespacesAndNewlines)
+                        modelContext.insert(Exercise(name: trimmedName, muscleGroup: trimmedGroup))
+                        dismiss()
                     }
-                    .disabled(!canAddExercise)
+                    .disabled(
+                        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        muscleGroup.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
                 }
             }
         }
