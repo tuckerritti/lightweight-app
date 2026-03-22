@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct ChatMessage: Identifiable {
@@ -23,6 +24,7 @@ struct ChatDrawerView: View {
     @State private var messages: [ChatMessage] = []
     @State private var inputText = ""
     @State private var isSending = false
+    @State private var isExpanded = false
     @FocusState private var isInputFocused: Bool
 
     private let smallDetent: PresentationDetent = .height(90)
@@ -52,75 +54,85 @@ struct ChatDrawerView: View {
             RoundedRectangle(cornerRadius: 2)
                 .fill(Color.black.opacity(0.15))
                 .frame(width: 36, height: 4)
-                .padding(.top, 8)
+                .padding(.top, 12)
                 .padding(.bottom, 4)
 
-            if selectedDetent != smallDetent {
-                // Header
-                HStack {
-                    Text("Chat")
-                        .font(.custom("SpaceGrotesk-Bold", size: 20))
-                        .tracking(-0.4)
-                        .foregroundStyle(Color(hex: 0x0A0A0A))
-                    Spacer()
-                    Button { selectedDetent = smallDetent } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Color.black.opacity(0.4))
-                            .frame(width: 28, height: 28)
-                            .background(Color(hex: 0xF5F5F5))
-                            .clipShape(Circle())
-                    }
+            // Header
+            HStack {
+                Text("Chat")
+                    .font(.custom("SpaceGrotesk-Bold", size: 20))
+                    .tracking(-0.4)
+                    .foregroundStyle(Color(hex: 0x0A0A0A))
+                Spacer()
+                Button {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    isExpanded = false
+                    selectedDetent = smallDetent
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.black.opacity(0.4))
+                        .frame(width: 28, height: 28)
+                        .background(Color(hex: 0xF5F5F5))
+                        .clipShape(Circle())
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-                .padding(.bottom, 8)
-
-                Divider()
-
-                // Messages
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(messages) { message in
-                                messageView(message)
-                            }
-
-                            if isSending && (messages.isEmpty || messages.last?.role == .user) {
-                                HStack(spacing: 8) {
-                                    ProgressView()
-                                    Text("Thinking...")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .id("loading")
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                    }
-                    .onChange(of: messages.count) {
-                        withAnimation {
-                            proxy.scrollTo(messages.last?.id, anchor: .bottom)
-                        }
-                    }
-                    .onChange(of: messages.last?.text) {
-                        withAnimation {
-                            proxy.scrollTo(messages.last?.id, anchor: .bottom)
-                        }
-                    }
-                    .onChange(of: isSending) {
-                        if isSending {
-                            withAnimation {
-                                proxy.scrollTo("loading", anchor: .bottom)
-                            }
-                        }
-                    }
-                }
-
-                Divider()
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+            .frame(height: isExpanded ? nil : 0, alignment: .top)
+            .clipped()
+
+            Divider()
+                .opacity(isExpanded ? 1 : 0)
+
+            // Messages
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(messages) { message in
+                            messageView(message)
+                        }
+
+                        if isSending && (messages.isEmpty || messages.last?.role == .user) {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Thinking...")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id("loading")
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                }
+                .onChange(of: messages.count) {
+                    withAnimation {
+                        proxy.scrollTo(messages.last?.id, anchor: .bottom)
+                    }
+                }
+                .onChange(of: messages.last?.text) {
+                    withAnimation {
+                        proxy.scrollTo(messages.last?.id, anchor: .bottom)
+                    }
+                }
+                .onChange(of: isSending) {
+                    if isSending {
+                        withAnimation {
+                            proxy.scrollTo("loading", anchor: .bottom)
+                        }
+                    }
+                }
+            }
+            .frame(height: isExpanded ? nil : 0)
+            .clipped()
+
+            Divider()
+                .opacity(isExpanded ? 1 : 0)
+
+            Spacer(minLength: 0)
 
             // Input bar (always visible)
             HStack(spacing: 12) {
@@ -149,6 +161,19 @@ struct ChatDrawerView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            if !isExpanded {
+                isExpanded = true
+                selectedDetent = .large
+            }
+        }
+        .onChange(of: selectedDetent) { oldValue, newValue in
+            if newValue == smallDetent && oldValue != smallDetent {
+                isExpanded = false
+            } else if newValue != smallDetent && !isExpanded {
+                isExpanded = true
+            }
         }
         .onChange(of: pendingMessage) { _, newValue in
             guard let message = newValue else { return }
