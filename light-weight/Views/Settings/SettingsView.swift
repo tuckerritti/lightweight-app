@@ -6,6 +6,9 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var apiKey = ""
     @State private var apiKeyError: String?
+    @State private var selectedSounds: Set<RestSound> = RestSound.selected
+
+    @State private var soundPreview = RestSoundService()
 
     private var profile: UserProfile? { profiles.first }
 
@@ -50,6 +53,50 @@ struct SettingsView: View {
                         settingsSection("INJURIES / LIMITATIONS") {
                             TextField("e.g. Bad left shoulder, avoid overhead", text: binding(\.injuries), axis: .vertical)
                                 .lineLimit(2...4)
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("REST TIMER SOUNDS")
+                                .font(.system(size: 13, weight: .semibold))
+                                .tracking(0.5)
+                                .foregroundStyle(Color.black.opacity(0.35))
+
+                            VStack(spacing: 0) {
+                                ForEach(RestSound.allCases) { sound in
+                                    Button {
+                                        if selectedSounds.contains(sound) {
+                                            if selectedSounds.count > 1 {
+                                                selectedSounds.remove(sound)
+                                            }
+                                        } else {
+                                            selectedSounds.insert(sound)
+                                            soundPreview.previewSound(sound)
+                                        }
+                                        RestSound.selected = selectedSounds
+                                    } label: {
+                                        HStack {
+                                            Text(sound.displayName)
+                                                .font(.system(size: 15))
+                                                .foregroundStyle(Color(hex: 0x0A0A0A))
+                                            Spacer()
+                                            if selectedSounds.contains(sound) {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 14, weight: .semibold))
+                                                    .foregroundStyle(Color(hex: 0x34C759))
+                                            }
+                                        }
+                                        .padding(.vertical, 12)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    if sound != RestSound.allCases.last {
+                                        Divider()
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .background(Color(hex: 0xF5F5F5))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
                         }
                     }
                     .padding(.horizontal, 20)
