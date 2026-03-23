@@ -40,12 +40,15 @@ struct ChatAIService {
             {
               "name": "Exercise Name",
               "muscleGroup": "Muscle Group",
+              "targetMuscles": ["chest", "front-deltoid", "triceps"],
               "sets": [
                 { "reps": 8, "weight": 135, "restSeconds": 90 }
               ]
             }
           ]
         }
+
+        targetMuscles: list the specific muscles each exercise works. Valid values: abs, biceps, calves, chest, deltoids, forearm, gluteal, hamstring, obliques, quadriceps, tibialis, trapezius, triceps, serratus, rhomboids, adductors, neck, upper-back, lower-back, rotator-cuff, hip-flexors, upper-chest, lower-chest, inner-quad, outer-quad, upper-abs, lower-abs, front-deltoid, rear-deltoid, upper-trapezius, lower-trapezius
 
         \(currentWorkout != nil ? "The user has an existing workout. Modify it based on their request — keep exercises they didn't mention, adjust what they asked about." : "Create a new workout from scratch based on the user's request.")
 

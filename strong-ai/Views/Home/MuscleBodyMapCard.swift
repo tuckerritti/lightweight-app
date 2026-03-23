@@ -99,31 +99,11 @@ private func muscleIntensities(from logs: [WorkoutLog]) -> [MuscleIntensity] {
         let recency = max(0, 1.0 - Double(daysSince) * 0.15)
 
         for entry in log.entries where entry.sets.contains(where: { $0.completedAt != nil }) {
-            for muscle in muscles(for: entry.muscleGroup) {
+            for muscle in entry.targetMuscles.compactMap({ Muscle(rawValue: $0) }) {
                 intensityByMuscle[muscle] = max(intensityByMuscle[muscle] ?? 0, recency)
             }
         }
     }
 
     return intensityByMuscle.map { MuscleIntensity(muscle: $0.key, intensity: $0.value) }
-}
-
-private func muscles(for group: String) -> [Muscle] {
-    switch group.lowercased() {
-    case "chest": return [.chest]
-    case "back": return [.upperBack, .lowerBack]
-    case "shoulders": return [.deltoids]
-    case "biceps": return [.biceps]
-    case "triceps": return [.triceps]
-    case "forearms": return [.forearm]
-    case "core", "abs": return [.abs, .obliques]
-    case "quads", "quadriceps": return [.quadriceps]
-    case "hamstrings": return [.hamstring]
-    case "glutes": return [.gluteal]
-    case "calves": return [.calves]
-    case "traps", "trapezius": return [.trapezius]
-    case "legs": return [.quadriceps, .hamstring, .gluteal, .calves]
-    case "lats": return [.upperBack]
-    default: return []
-    }
 }

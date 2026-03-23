@@ -25,6 +25,7 @@ struct WorkoutAIService {
             {
               "name": "Exercise Name",
               "muscleGroup": "Muscle Group",
+              "targetMuscles": ["chest", "front-deltoid", "triceps"],
               "sets": [
                 { "reps": 8, "weight": 135, "restSeconds": 90 }
               ]
@@ -39,6 +40,7 @@ struct WorkoutAIService {
         - Rest seconds: 60-90 for hypertrophy, 120-180 for strength, 30-45 for accessories
         - Weight in lbs. Use 0 for bodyweight exercises.
         - When the user's exercise library contains a matching exercise, use its EXACT name. Prefer library exercises over inventing new ones unless the workout calls for something different.
+        - targetMuscles: list the specific muscles each exercise works. Valid values: abs, biceps, calves, chest, deltoids, forearm, gluteal, hamstring, obliques, quadriceps, tibialis, trapezius, triceps, serratus, rhomboids, adductors, neck, upper-back, lower-back, rotator-cuff, hip-flexors, upper-chest, lower-chest, inner-quad, outer-quad, upper-abs, lower-abs, front-deltoid, rear-deltoid, upper-trapezius, lower-trapezius
         """
 
         let userMessage = buildUserContext(profile: profile, recentLogs: recentLogs, exercises: exercises, healthContext: healthContext)
@@ -204,4 +206,5 @@ struct WorkoutLogSnapshot: Sendable {
 struct ExerciseSnapshot: Sendable {
     var name: String
     var muscleGroup: String
+    var targetMuscles: [String]
 }

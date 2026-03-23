@@ -114,7 +114,7 @@ struct HomeView: View {
                 message: message,
                 currentWorkout: todayWorkout,
                 profile: profileSnapshot,
-                exercises: exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup) }
+                exercises: exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup, targetMuscles: $0.targetMuscles) }
             )
 
             return AsyncThrowingStream { continuation in
@@ -169,7 +169,7 @@ struct HomeView: View {
     }
 
     private var exerciseSnapshots: [ExerciseSnapshot] {
-        exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup) }
+        exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup, targetMuscles: $0.targetMuscles) }
     }
 
     private func saveExercisesToLibrary(_ workoutExercises: [WorkoutExercise]) {
