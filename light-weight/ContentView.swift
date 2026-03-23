@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @Observable
 final class AppState {
@@ -8,9 +9,19 @@ final class AppState {
 
 struct ContentView: View {
     @State private var appState = AppState()
+    @Query private var profiles: [UserProfile]
+
+    private var needsOnboarding: Bool {
+        guard let profile = profiles.first else { return true }
+        return !profile.onboardingCompleted
+    }
 
     var body: some View {
-        HomeView()
-            .environment(appState)
+        if needsOnboarding {
+            OnboardingView()
+        } else {
+            HomeView()
+                .environment(appState)
+        }
     }
 }
