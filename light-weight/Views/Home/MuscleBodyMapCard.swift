@@ -8,7 +8,7 @@ struct MuscleBodyMapCard: View {
     var body: some View {
         VStack(spacing: 4) {
             BodyView(gender: .male, side: .front, style: .minimal)
-                .heatmap(muscleIntensities(from: logs), colorScale: .workout)
+                .heatmap(muscleIntensities(from: logs), colorScale: readinessColorScale)
                 .frame(height: 80)
                 .allowsHitTesting(false)
             Text("VOLUME")
@@ -54,7 +54,7 @@ struct ExpandedMuscleMapView: View {
                 HStack(spacing: 20) {
                     VStack(spacing: 8) {
                         BodyView(gender: .male, side: .front, style: .minimal)
-                            .heatmap(muscleIntensities(from: logs), colorScale: .workout)
+                            .heatmap(muscleIntensities(from: logs), colorScale: readinessColorScale)
                             .frame(height: 240)
                             .allowsHitTesting(false)
                         Text("FRONT")
@@ -65,7 +65,7 @@ struct ExpandedMuscleMapView: View {
 
                     VStack(spacing: 8) {
                         BodyView(gender: .male, side: .back, style: .minimal)
-                            .heatmap(muscleIntensities(from: logs), colorScale: .workout)
+                            .heatmap(muscleIntensities(from: logs), colorScale: readinessColorScale)
                             .frame(height: 240)
                             .allowsHitTesting(false)
                         Text("BACK")
@@ -86,10 +86,23 @@ struct ExpandedMuscleMapView: View {
 
 // MARK: - Shared Intensity Calculation
 
+/// All muscles relevant for exercise tracking (excludes cosmetic parts like head, hands, feet).
+private let exerciseMuscles: [Muscle] = Muscle.allCases.filter {
+    ![Muscle.head, .hands, .feet, .knees, .ankles].contains($0)
+}
+
+/// Green (ready) → yellow → orange → red (recently hit).
+private let readinessColorScale = HeatmapColorScale(colors: [
+    Color(hex: 0x34C759),
+    .yellow,
+    .orange,
+    .red
+])
+
 private func muscleIntensities(from logs: [WorkoutLog]) -> [MuscleIntensity] {
     let calendar = Calendar.current
     let today = calendar.startOfDay(for: .now)
-    var intensityByMuscle: [Muscle: Double] = [:]
+    var intensityByMuscle: [Muscle: Double] = Dictionary(uniqueKeysWithValues: exerciseMuscles.map { ($0, 0.0) })
 
     for log in logs {
         guard let finishedAt = log.finishedAt else { continue }
