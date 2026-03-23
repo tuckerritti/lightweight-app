@@ -28,14 +28,20 @@ enum RestSound: String, CaseIterable, Identifiable {
         Bundle.main.url(forResource: rawValue, withExtension: "wav")!
     }
 
-    static var selected: RestSound {
+    static var selected: Set<RestSound> {
         get {
-            guard let raw = UserDefaults.standard.string(forKey: "restSound"),
-                  let sound = RestSound(rawValue: raw) else { return .yeahBuddy }
-            return sound
+            guard let data = UserDefaults.standard.data(forKey: "restSounds"),
+                  let rawValues = try? JSONDecoder().decode([String].self, from: data) else {
+                return [.yeahBuddy]
+            }
+            let sounds = Set(rawValues.compactMap { RestSound(rawValue: $0) })
+            return sounds.isEmpty ? [.yeahBuddy] : sounds
         }
         set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: "restSound")
+            let rawValues = newValue.map(\.rawValue)
+            if let data = try? JSONEncoder().encode(rawValues) {
+                UserDefaults.standard.set(data, forKey: "restSounds")
+            }
         }
     }
 }
@@ -70,7 +76,7 @@ final class RestSoundService: NSObject, AVAudioPlayerDelegate {
     }
 
     func playCompletionSound() {
-        let sound = RestSound.selected
+        let sound = RestSound.selected.randomElement() ?? .yeahBuddy
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .duckOthers)
             completionPlayer = try AVAudioPlayer(contentsOf: sound.url)

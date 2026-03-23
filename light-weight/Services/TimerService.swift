@@ -16,6 +16,7 @@ final class TimerService {
 
     private var timer: Timer?
     private var fireDate: Date?
+    private var cleanupWork: DispatchWorkItem?
 
     func start(seconds: Int) {
         stop()
@@ -28,6 +29,8 @@ final class TimerService {
         isRunning = true
         fireDate = Date().addingTimeInterval(TimeInterval(seconds))
 
+        cleanupWork?.cancel()
+        cleanupWork = nil
         scheduleNotification(seconds: seconds)
         soundService.startBackgroundAudio()
 
@@ -52,6 +55,8 @@ final class TimerService {
         remainingSeconds = 0
         totalSeconds = 0
         fireDate = nil
+        cleanupWork?.cancel()
+        cleanupWork = nil
         soundService.stopBackgroundAudio()
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["rest-timer"])
     }
@@ -89,9 +94,11 @@ final class TimerService {
         soundService.playCompletionSound()
 
         // Delay stopping background audio so the completion sound can finish playing.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
+        let work = DispatchWorkItem { [weak self] in
             self?.soundService.stopBackgroundAudio()
         }
+        cleanupWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12, execute: work)
     }
 
     private func scheduleNotification(seconds: Int) {
