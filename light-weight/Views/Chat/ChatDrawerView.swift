@@ -6,6 +6,7 @@ struct ChatMessage: Identifiable {
     let role: Role
     var text: String
     var isApplied: Bool = false
+    var isError: Bool = false
 
     enum Role {
         case user, assistant
@@ -228,7 +229,7 @@ struct ChatDrawerView: View {
         isSending = true
 
         // Pass prior messages as history (exclude the just-appended user message)
-        let history = Array(messages.dropLast())
+        let history = messages.dropLast().filter { !$0.isError }
         guard let stream = await onSend(text, history) else {
             isSending = false
             return
@@ -255,6 +256,7 @@ struct ChatDrawerView: View {
             } else {
                 messages[assistantIndex].text += "\n\nError: \(error.localizedDescription)"
             }
+            messages[assistantIndex].isError = true
         }
 
         isSending = false

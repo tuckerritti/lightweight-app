@@ -293,6 +293,7 @@ struct ActiveWorkoutView: View {
                                     saveExercisesToLibrary(result.workout.exercises)
                                 } else {
                                     logger.info("Discarding stale chat workout update")
+                                    continue
                                 }
                             }
                             continuation.yield(event)
@@ -544,6 +545,25 @@ final class ActiveWorkoutViewModel {
 
         workoutExercises = updatedExercises
         entries = updatedEntries
+
+        resyncTimerIfNeeded()
+    }
+
+    private func resyncTimerIfNeeded() {
+        guard timerService.isRunning else { return }
+
+        // Find the last completed set and its new planned rest
+        for (ei, entry) in entries.enumerated().reversed() {
+            for (si, set) in entry.sets.enumerated().reversed() {
+                if set.completedAt != nil {
+                    if let planned = plannedSet(exerciseIndex: ei, setIndex: si),
+                       planned.restSeconds != timerService.totalSeconds {
+                        timerService.resync(newTotalSeconds: planned.restSeconds)
+                    }
+                    return
+                }
+            }
+        }
     }
 
     private func completedPrefix(from sets: [LogSet]) -> [LogSet] {
