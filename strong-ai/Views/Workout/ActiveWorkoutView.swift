@@ -269,6 +269,7 @@ struct ActiveWorkoutView: View {
             equipment: profile?.equipment ?? "",
             injuries: profile?.injuries ?? ""
         )
+        let generation = viewModel.nextAdjustmentGeneration()
 
         do {
             let stream = try await ChatAIService.stream(
@@ -287,8 +288,12 @@ struct ActiveWorkoutView: View {
                     do {
                         for try await event in stream {
                             if case .result(let result) = event {
-                                viewModel.applyModifiedWorkout(result.workout)
-                                saveExercisesToLibrary(result.workout.exercises)
+                                if viewModel.shouldApplyAdjustment(generation: generation) {
+                                    viewModel.applyModifiedWorkout(result.workout)
+                                    saveExercisesToLibrary(result.workout.exercises)
+                                } else {
+                                    logger.info("Discarding stale chat workout update")
+                                }
                             }
                             continuation.yield(event)
                         }
@@ -319,7 +324,7 @@ final class ActiveWorkoutViewModel {
     var workoutName: String
     let timerService = TimerService()
     var apiKey: String = ""
-    var isAdjusting = false
+    private var adjustmentGeneration = 0
 
     private var workoutExercises: [WorkoutExercise]
     private var elapsedTimer: Timer?
@@ -429,21 +434,33 @@ final class ActiveWorkoutViewModel {
         }
     }
 
+    func nextAdjustmentGeneration() -> Int {
+        adjustmentGeneration += 1
+        return adjustmentGeneration
+    }
+
+    func shouldApplyAdjustment(generation: Int) -> Bool {
+        generation == adjustmentGeneration
+    }
+
     private func requestRPEAdjustment() {
         let key = apiKey
         let workout = currentWorkout
         let progress = entries
+        let generation = nextAdjustmentGeneration()
 
-        isAdjusting = true
         Task {
             if let adjusted = await RPEAdjustmentService.adjustWorkout(
                 apiKey: key,
                 workout: workout,
                 progress: progress
             ) {
-                applyModifiedWorkout(adjusted)
+                if shouldApplyAdjustment(generation: generation) {
+                    applyModifiedWorkout(adjusted)
+                } else {
+                    logger.info("Discarding stale RPE adjustment (generation \(generation))")
+                }
             }
-            isAdjusting = false
         }
     }
 
