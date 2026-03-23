@@ -126,6 +126,7 @@ struct ActiveWorkoutView: View {
         }
         .onAppear {
             syncAPIKeyFromProfile()
+            viewModel.apiKey = apiKey
             viewModel.start()
             viewModel.timerService.requestPermission()
             saveExercisesToLibrary(viewModel.currentWorkout.exercises)
@@ -317,6 +318,8 @@ final class ActiveWorkoutViewModel {
     var startedAt: Date
     var workoutName: String
     let timerService = TimerService()
+    var apiKey: String = ""
+    var isAdjusting = false
 
     private var workoutExercises: [WorkoutExercise]
     private var elapsedTimer: Timer?
@@ -412,26 +415,35 @@ final class ActiveWorkoutViewModel {
 
         if exerciseIndex < workoutExercises.count,
            setIndex < workoutExercises[exerciseIndex].sets.count {
-            // Keep prompt context aligned with what the user actually completed.
             workoutExercises[exerciseIndex].sets[setIndex].weight = weight
             workoutExercises[exerciseIndex].sets[setIndex].reps = reps
         }
 
-        if let ps = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex) {
-            timerService.start(seconds: ps.restSeconds)
+        let planned = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
+        if let planned {
+            timerService.start(seconds: planned.restSeconds)
         }
 
-        // Auto-adjust remaining sets based on RPE vs target
-        if let actualRpe = rpe, let targetRpe = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)?.targetRpe,
-           let newWeight = RPEAdjustmentService.adjustedWeight(actualRpe: actualRpe, targetRpe: targetRpe, currentWeight: weight) {
-            for i in (setIndex + 1)..<entries[exerciseIndex].sets.count {
-                if entries[exerciseIndex].sets[i].completedAt == nil {
-                    entries[exerciseIndex].sets[i].weight = newWeight
-                    if i < workoutExercises[exerciseIndex].sets.count {
-                        workoutExercises[exerciseIndex].sets[i].weight = newWeight
-                    }
-                }
+        if rpe != nil, !apiKey.isEmpty {
+            requestRPEAdjustment()
+        }
+    }
+
+    private func requestRPEAdjustment() {
+        let key = apiKey
+        let workout = currentWorkout
+        let progress = entries
+
+        isAdjusting = true
+        Task {
+            if let adjusted = await RPEAdjustmentService.adjustWorkout(
+                apiKey: key,
+                workout: workout,
+                progress: progress
+            ) {
+                applyModifiedWorkout(adjusted)
             }
+            isAdjusting = false
         }
     }
 

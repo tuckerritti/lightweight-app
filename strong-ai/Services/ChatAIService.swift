@@ -51,7 +51,7 @@ struct ChatAIService {
           ]
         }
 
-        You MUST set targetRpe (1-10) for every set. 7-8 for working sets, 5-6 for warmups, 8-9 for top sets.
+        You MUST set targetRpe (1-10) for every set.
 
         \(currentWorkout != nil ? "The user has an existing workout. Modify it based on their request — keep exercises they didn't mention, adjust what they asked about." : "Create a new workout from scratch based on the user's request.")
         \(isActiveWorkout ? "\nIMPORTANT: This workout is in progress. Sets marked COMPLETED in the progress below cannot be changed. You MUST include them exactly as-is in your response. Only modify PLANNED sets and exercises." : "")
