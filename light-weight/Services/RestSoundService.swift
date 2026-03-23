@@ -42,13 +42,13 @@ enum RestSound: String, CaseIterable, Identifiable {
 
 @MainActor
 @Observable
-final class RestSoundService {
+final class RestSoundService: NSObject, AVAudioPlayerDelegate {
     private var silencePlayer: AVAudioPlayer?
     private var completionPlayer: AVAudioPlayer?
 
     func startBackgroundAudio() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .mixWithOthers)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             logger.error("Failed to configure audio session: \(error)")
@@ -72,7 +72,9 @@ final class RestSoundService {
     func playCompletionSound() {
         let sound = RestSound.selected
         do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .duckOthers)
             completionPlayer = try AVAudioPlayer(contentsOf: sound.url)
+            completionPlayer?.delegate = self
             completionPlayer?.volume = 1.0
             completionPlayer?.play()
         } catch {
@@ -90,13 +92,23 @@ final class RestSoundService {
 
     func previewSound(_ sound: RestSound) {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .duckOthers)
             try AVAudioSession.sharedInstance().setActive(true)
             completionPlayer = try AVAudioPlayer(contentsOf: sound.url)
+            completionPlayer?.delegate = self
             completionPlayer?.volume = 1.0
             completionPlayer?.play()
         } catch {
             logger.error("Failed to preview \(sound.rawValue): \(error)")
+        }
+    }
+
+    // MARK: - AVAudioPlayerDelegate
+
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        MainActor.assumeIsolated {
+            // Switch back to mixWithOthers so music volume restores immediately
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .mixWithOthers)
         }
     }
 }
