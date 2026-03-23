@@ -45,6 +45,7 @@ struct OnboardingView: View {
                 EmptyView()
             }
         }
+        .frame(maxWidth: .infinity)
         .animation(.easeInOut(duration: 0.3), value: currentStep)
     }
 
