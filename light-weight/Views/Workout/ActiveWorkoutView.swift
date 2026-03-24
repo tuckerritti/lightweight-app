@@ -48,21 +48,6 @@ struct ActiveWorkoutView: View {
             }
             .padding(.bottom, 120)
         }
-        .overlay {
-            if !apiKey.isEmpty {
-                ChatDrawerView(
-                    selectedDetent: $state.chatDetent,
-                    pendingMessage: $state.pendingMessage,
-                    placeholder: "Add more tricep work...",
-                    workoutName: viewModel.workoutName,
-                    elapsedTime: viewModel.elapsedFormatted,
-                    exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
-                    onSend: { message in
-                        await streamMidWorkoutChat(message)
-                    }
-                )
-            }
-        }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden()
         .toolbar {
@@ -83,17 +68,41 @@ struct ActiveWorkoutView: View {
                 .disabled(viewModel.completedSets == 0)
             }
         }
-        .alert("Discard Workout?", isPresented: $showingCancelAlert) {
-            Button("Discard", role: .destructive) { viewModel.stop(); dismiss() }
-            Button("Keep Going", role: .cancel) { }
-        } message: {
-            Text("You've logged \(viewModel.completedSets) sets. This can't be undone.")
+        .overlay {
+            if !apiKey.isEmpty {
+                ChatDrawerView(
+                    selectedDetent: $state.chatDetent,
+                    pendingMessage: $state.pendingMessage,
+                    placeholder: "Add more tricep work...",
+                    workoutName: viewModel.workoutName,
+                    elapsedTime: viewModel.elapsedFormatted,
+                    exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
+                    onSend: { message in
+                        await streamMidWorkoutChat(message)
+                    }
+                )
+            }
         }
-        .alert("Finish Workout?", isPresented: $showingFinishAlert) {
-            Button("Finish") { finishWorkout() }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Save your workout with \(viewModel.completedSets) sets completed?")
+        .overlay {
+            if showingCancelAlert {
+                ConfirmationOverlay(
+                    title: "Discard Workout?",
+                    message: "You've logged \(viewModel.completedSets) sets. This can't be undone.",
+                    confirmTitle: "Discard",
+                    confirmRole: .destructive,
+                    onConfirm: { viewModel.stop(); dismiss() },
+                    onCancel: { showingCancelAlert = false }
+                )
+            }
+            if showingFinishAlert {
+                ConfirmationOverlay(
+                    title: "Finish Workout?",
+                    message: "Save your workout with \(viewModel.completedSets) sets completed?",
+                    confirmTitle: "Finish",
+                    onConfirm: { finishWorkout() },
+                    onCancel: { showingFinishAlert = false }
+                )
+            }
         }
         .sheet(item: $selectedExercise) { exercise in
             NavigationStack {
@@ -125,10 +134,14 @@ struct ActiveWorkoutView: View {
             }
         }
         .onAppear {
+            appState.workoutActive = true
             syncAPIKeyFromProfile()
             viewModel.start()
             viewModel.timerService.requestPermission()
             saveExercisesToLibrary(viewModel.currentWorkout.exercises)
+        }
+        .onDisappear {
+            appState.workoutActive = false
         }
     }
 
@@ -303,6 +316,65 @@ struct ActiveWorkoutView: View {
                 continuation.yield(.text("Error: \(error.localizedDescription)"))
                 continuation.finish()
             }
+        }
+    }
+}
+
+// MARK: - Confirmation Overlay
+
+private struct ConfirmationOverlay: View {
+    let title: String
+    let message: String
+    let confirmTitle: String
+    var confirmRole: ButtonRole? = nil
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture { onCancel() }
+
+            VStack(spacing: 0) {
+                VStack(spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(message)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
+
+                Divider()
+
+                HStack(spacing: 0) {
+                    Button {
+                        onCancel()
+                    } label: {
+                        Text("Cancel")
+                            .font(.system(size: 17))
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+
+                    Divider().frame(height: 44)
+
+                    Button {
+                        onConfirm()
+                    } label: {
+                        Text(confirmTitle)
+                            .font(.system(size: 17, weight: confirmRole == .destructive ? .semibold : .regular))
+                            .foregroundStyle(confirmRole == .destructive ? .red : Color.accentColor)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                }
+            }
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 50)
         }
     }
 }

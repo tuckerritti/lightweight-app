@@ -47,14 +47,16 @@ struct HomeView: View {
                     .padding(.bottom, 100)
                 }
                 .overlay {
-                    ChatDrawerView(
-                        selectedDetent: $state.chatDetent,
-                        pendingMessage: $state.pendingMessage,
-                        placeholder: "I only have 30 min today...",
-                        onSend: { message in
-                            await streamChat(message)
-                        }
-                    )
+                    if !appState.workoutActive {
+                        ChatDrawerView(
+                            selectedDetent: $state.chatDetent,
+                            pendingMessage: $state.pendingMessage,
+                            placeholder: "I only have 30 min today...",
+                            onSend: { message in
+                                await streamChat(message)
+                            }
+                        )
+                    }
                 }
                 .onAppear {
                     syncAPIKeyFromProfile()
