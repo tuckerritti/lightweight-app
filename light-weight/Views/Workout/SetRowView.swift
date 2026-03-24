@@ -14,7 +14,8 @@ struct SetRowView: View {
 
     private var isCompleted: Bool { logSet.completedAt != nil }
     private var canLog: Bool {
-        Double(weightText) != nil && Int(repsText) != nil && Int(rpeText) != nil
+        guard let rpe = Int(rpeText) else { return false }
+        return Double(weightText) != nil && Int(repsText) != nil && (0...10).contains(rpe)
     }
 
     var body: some View {
