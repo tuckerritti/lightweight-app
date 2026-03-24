@@ -221,6 +221,7 @@ struct ActiveWorkoutView: View {
                         logSet: set,
                         plannedSet: viewModel.plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
                         isActive: viewModel.isActiveSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
+                        isUpdating: viewModel.updatedSetKeys.contains("\(exerciseIndex)-\(setIndex)"),
                         onLog: { weight, reps, rpe in
                             viewModel.logSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe)
                         }
@@ -330,6 +331,7 @@ final class ActiveWorkoutViewModel {
     var workoutName: String
     let timerService = TimerService()
     var apiKey: String = ""
+    var updatedSetKeys: Set<String> = []
     private var adjustmentGeneration = 0
 
     private var workoutExercises: [WorkoutExercise]
@@ -554,6 +556,19 @@ final class ActiveWorkoutViewModel {
 
         workoutExercises = updatedExercises
         entries = updatedEntries
+
+        // Flag non-completed sets for shadow sweep animation
+        var keys: Set<String> = []
+        for (ei, entry) in entries.enumerated() {
+            for (si, set) in entry.sets.enumerated() where set.completedAt == nil {
+                keys.insert("\(ei)-\(si)")
+            }
+        }
+        updatedSetKeys = keys
+        Task {
+            try? await Task.sleep(for: .seconds(0.8))
+            updatedSetKeys = []
+        }
 
         resyncTimerIfNeeded()
     }

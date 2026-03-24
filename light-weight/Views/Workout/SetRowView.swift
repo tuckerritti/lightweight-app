@@ -5,12 +5,15 @@ struct SetRowView: View {
     let logSet: LogSet
     let plannedSet: WorkoutSet?
     let isActive: Bool
+    let isUpdating: Bool
     let onLog: (Double, Int, Int?) -> Void
 
     @State private var weightText: String = ""
     @State private var repsText: String = ""
     @State private var rpeText: String = ""
     @State private var didInit = false
+    @State private var sweepPosition: CGFloat = 1.3
+    @State private var contentOpacity: Double = 1.0
 
     private var isCompleted: Bool { logSet.completedAt != nil }
 
@@ -50,6 +53,32 @@ struct SetRowView: View {
         .onChange(of: logSet.rpe) {
             if isCompleted {
                 rpeText = logSet.rpe.map(String.init) ?? ""
+            }
+        }
+        .overlay {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: max(0, sweepPosition - 0.15)),
+                            .init(color: Color.black.opacity(0.22), location: max(0, min(1, sweepPosition))),
+                            .init(color: .clear, location: min(1, sweepPosition + 0.15)),
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .opacity(sweepPosition < 1.3 ? 1 : 0)
+                .allowsHitTesting(false)
+        }
+        .opacity(contentOpacity)
+        .onChange(of: isUpdating) {
+            guard isUpdating else { return }
+            sweepPosition = -0.3
+            contentOpacity = 0.3
+            withAnimation(.easeOut(duration: 0.8)) {
+                sweepPosition = 1.3
+                contentOpacity = 1.0
             }
         }
     }
@@ -151,3 +180,4 @@ struct SetRowView: View {
         repsText = "\(logSet.reps)"
     }
 }
+
