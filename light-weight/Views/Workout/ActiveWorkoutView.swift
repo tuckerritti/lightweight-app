@@ -355,7 +355,7 @@ final class ActiveWorkoutViewModel {
                 muscleGroup: exercise.muscleGroup,
                 targetMuscles: exercise.targetMuscles,
                 sets: exercise.sets.map { plannedSet in
-                    LogSet(reps: plannedSet.reps, weight: plannedSet.weight)
+                    LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: 0)
                 }
             )
         }
@@ -403,7 +403,7 @@ final class ActiveWorkoutViewModel {
         return false
     }
 
-    func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int?) {
+    func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
         entries[exerciseIndex].sets[setIndex].weight = weight
         entries[exerciseIndex].sets[setIndex].reps = reps
         entries[exerciseIndex].sets[setIndex].rpe = rpe
@@ -432,7 +432,7 @@ final class ActiveWorkoutViewModel {
                         let setIndex = completedSets.count + i
                         if setIndex < newExercise.sets.count {
                             let planned = newExercise.sets[setIndex]
-                            sets.append(LogSet(reps: planned.reps, weight: planned.weight))
+                            sets.append(LogSet(reps: planned.reps, weight: planned.weight, rpe: 0))
                         }
                     }
                     updatedEntries.append(LogEntry(
@@ -446,7 +446,7 @@ final class ActiveWorkoutViewModel {
                         exerciseName: newExercise.name,
                         muscleGroup: newExercise.muscleGroup,
                         targetMuscles: newExercise.targetMuscles,
-                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight) }
+                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: 0) }
                     ))
                 }
             } else {
@@ -454,7 +454,7 @@ final class ActiveWorkoutViewModel {
                     exerciseName: newExercise.name,
                     muscleGroup: newExercise.muscleGroup,
                     targetMuscles: newExercise.targetMuscles,
-                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight) }
+                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: 0) }
                 ))
             }
         }

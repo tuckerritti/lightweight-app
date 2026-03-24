@@ -5,7 +5,7 @@ struct SetRowView: View {
     let logSet: LogSet
     let plannedSet: WorkoutSet?
     let isActive: Bool
-    let onLog: (Double, Int, Int?) -> Void
+    let onLog: (Double, Int, Int) -> Void
 
     @State private var weightText: String = ""
     @State private var repsText: String = ""
@@ -13,6 +13,9 @@ struct SetRowView: View {
     @State private var didInit = false
 
     private var isCompleted: Bool { logSet.completedAt != nil }
+    private var canLog: Bool {
+        Double(weightText) != nil && Int(repsText) != nil && Int(rpeText) != nil
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -97,15 +100,13 @@ struct SetRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
         Button {
-            let weight = Double(weightText) ?? 0
-            let reps = Int(repsText) ?? 0
-            let rpe = Int(rpeText)
-            onLog(weight, reps, rpe)
+            onLog(Double(weightText)!, Int(repsText)!, Int(rpeText)!)
         } label: {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 20))
-                .foregroundStyle(Color.black.opacity(0.3))
+                .foregroundStyle(canLog ? Color(hex: 0x0A0A0A) : Color.black.opacity(0.15))
         }
+        .disabled(!canLog)
         .frame(width: 28)
     }
 
