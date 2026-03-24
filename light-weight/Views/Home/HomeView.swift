@@ -76,7 +76,14 @@ struct HomeView: View {
     // MARK: - AI Generation
 
     private func generateWorkoutIfNeeded() async {
-        guard todayWorkout == nil, !apiKey.isEmpty else { return }
+        guard todayWorkout == nil else { return }
+
+        if let cached = WorkoutCacheService.loadToday() {
+            todayWorkout = cached
+            return
+        }
+
+        guard !apiKey.isEmpty else { return }
 
         isLoading = true
         errorMessage = nil
@@ -96,6 +103,7 @@ struct HomeView: View {
                 healthContext: healthContext
             )
             todayWorkout = workout
+            WorkoutCacheService.save(workout)
             saveExercisesToLibrary(workout.exercises)
         } catch {
             logger.error("Workout generation failed: \(error)")
@@ -123,6 +131,7 @@ struct HomeView: View {
                         for try await event in stream {
                             if case .result(let result) = event {
                                 todayWorkout = result.workout
+                                WorkoutCacheService.save(result.workout)
                                 saveExercisesToLibrary(result.workout.exercises)
                                 errorMessage = nil
                             }
