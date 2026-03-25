@@ -26,6 +26,7 @@ struct ChatDrawerView: View {
     @State private var inputText = ""
     @State private var isSending = false
     @AppStorage("showTokenCost") private var showTokenCost = false
+    @State private var tappedInputBar = false
     private var isExpanded: Bool { selectedDetent != smallDetent }
     @FocusState private var isInputFocused: Bool
 
@@ -83,6 +84,7 @@ struct ChatDrawerView: View {
             .padding(.bottom, 8)
             .frame(height: isExpanded ? nil : 0, alignment: .top)
             .clipped()
+            .allowsHitTesting(isExpanded)
 
             Divider()
                 .opacity(isExpanded ? 1 : 0)
@@ -162,11 +164,13 @@ struct ChatDrawerView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            .simultaneousGesture(TapGesture().onEnded { tappedInputBar = true })
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-            if !isExpanded {
+            if tappedInputBar && !isExpanded {
                 selectedDetent = .large
             }
+            tappedInputBar = false
         }
         .onChange(of: pendingMessage) { _, newValue in
             guard let message = newValue else { return }
