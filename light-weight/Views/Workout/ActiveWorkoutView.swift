@@ -20,8 +20,6 @@ struct ActiveWorkoutView: View {
 
     let workout: Workout
     @State private var viewModel: ActiveWorkoutViewModel
-    @State private var showingCancelAlert = false
-    @State private var showingFinishAlert = false
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @State private var apiKey = ""
@@ -49,8 +47,36 @@ struct ActiveWorkoutView: View {
             }
             .padding(.bottom, 120)
         }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden()
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    if viewModel.completedSets > 0 {
+                        showNativeAlert(
+                            title: "Discard Workout?",
+                            message: "You've logged \(viewModel.completedSets) sets. This can't be undone.",
+                            confirmTitle: "Discard",
+                            isDestructive: true
+                        ) { viewModel.stop(); dismiss() }
+                    } else {
+                        viewModel.stop()
+                        dismiss()
+                    }
+                }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") {
+                    showNativeAlert(
+                        title: "Finish Workout?",
+                        message: "Save your workout with \(viewModel.completedSets) sets completed?",
+                        confirmTitle: "Finish",
+                        isDestructive: false
+                    ) { finishWorkout() }
+                }
+                .disabled(viewModel.completedSets == 0)
+            }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Done") {
@@ -72,38 +98,6 @@ struct ActiveWorkoutView: View {
                     }
                 )
             }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden()
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") {
-                    if viewModel.completedSets > 0 {
-                        showingCancelAlert = true
-                    } else {
-                        viewModel.stop()
-                        dismiss()
-                    }
-                }
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Done") {
-                    showingFinishAlert = true
-                }
-                .disabled(viewModel.completedSets == 0)
-            }
-        }
-        .alert("Discard Workout?", isPresented: $showingCancelAlert) {
-            Button("Discard", role: .destructive) { viewModel.stop(); dismiss() }
-            Button("Keep Going", role: .cancel) { }
-        } message: {
-            Text("You've logged \(viewModel.completedSets) sets. This can't be undone.")
-        }
-        .alert("Finish Workout?", isPresented: $showingFinishAlert) {
-            Button("Finish") { finishWorkout() }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Save your workout with \(viewModel.completedSets) sets completed?")
         }
         .sheet(item: $selectedExercise) { exercise in
             NavigationStack {
@@ -329,6 +323,31 @@ struct ActiveWorkoutView: View {
             }
         }
     }
+}
+
+// MARK: - Native Alert Helper
+
+private func showNativeAlert(
+    title: String,
+    message: String,
+    confirmTitle: String,
+    isDestructive: Bool,
+    onConfirm: @escaping () -> Void
+) {
+    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+          let root = windowScene.windows.first?.rootViewController else { return }
+
+    var topVC = root
+    while let presented = topVC.presentedViewController {
+        topVC = presented
+    }
+
+    let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+    alert.addAction(UIAlertAction(title: confirmTitle, style: isDestructive ? .destructive : .default) { _ in
+        onConfirm()
+    })
+    topVC.present(alert, animated: true)
 }
 
 // MARK: - View Model
