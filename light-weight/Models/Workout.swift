@@ -39,11 +39,13 @@ struct WorkoutSet: Codable, Sendable {
     var reps: Int
     var weight: Double
     var restSeconds: Int
+    var targetRpe: Int?
 
-    init(reps: Int, weight: Double, restSeconds: Int) {
+    init(reps: Int, weight: Double, restSeconds: Int, targetRpe: Int? = nil) {
         self.reps = reps
         self.weight = weight
         self.restSeconds = restSeconds
+        self.targetRpe = targetRpe
     }
 
     init(from decoder: Decoder) throws {
@@ -51,5 +53,6 @@ struct WorkoutSet: Codable, Sendable {
         reps = try container.decode(Int.self, forKey: .reps)
         weight = try container.decode(Double.self, forKey: .weight)
         restSeconds = try container.decodeIfPresent(Int.self, forKey: .restSeconds) ?? 90
+        targetRpe = try container.decodeIfPresent(Int.self, forKey: .targetRpe)
     }
 }

@@ -47,16 +47,6 @@ struct HomeView: View {
                     }
                     .padding(.bottom, 100)
                 }
-                .overlay {
-                    ChatDrawerView(
-                        selectedDetent: $state.chatDetent,
-                        pendingMessage: $state.pendingMessage,
-                        placeholder: "I only have 30 min today...",
-                        onSend: { message in
-                            await streamChat(message)
-                        }
-                    )
-                }
                 .onAppear {
                     syncAPIKeyFromProfile()
                     Task {
@@ -65,6 +55,18 @@ struct HomeView: View {
                 }
                 .onChange(of: profiles.count) { _, _ in
                     syncAPIKeyFromProfile()
+                }
+                .overlay {
+                    if !appState.isWorkoutActive {
+                        ChatDrawerView(
+                            selectedDetent: $state.chatDetent,
+                            pendingMessage: $state.pendingMessage,
+                            placeholder: "I only have 30 min today...",
+                            onSend: { message, history in
+                                await streamChat(message, history: history)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -114,7 +116,7 @@ struct HomeView: View {
         isLoading = false
     }
 
-    private func streamChat(_ message: String) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
+    private func streamChat(_ message: String, history: [ChatMessage]) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
         guard !apiKey.isEmpty else { return nil }
 
         do {
@@ -123,7 +125,8 @@ struct HomeView: View {
                 message: message,
                 currentWorkout: todayWorkout,
                 profile: profileSnapshot,
-                exercises: exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup, targetMuscles: $0.targetMuscles) }
+                exercises: exercises.map { ExerciseSnapshot(name: $0.name, muscleGroup: $0.muscleGroup, targetMuscles: $0.targetMuscles) },
+                history: history
             )
 
             return AsyncThrowingStream { continuation in
