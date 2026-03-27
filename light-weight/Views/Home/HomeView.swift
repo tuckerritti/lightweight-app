@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var healthContext: HealthContext?
+    @State private var workoutDate = Date.now
     @State private var exercisesExpanded = false
     @State private var muscleMapExpanded = false
     @State private var apiKey = ""
@@ -131,7 +132,9 @@ struct HomeView: View {
                         for try await event in stream {
                             if case .result(let result) = event {
                                 todayWorkout = result.workout
-                                WorkoutCacheService.save(result.workout)
+                                if Calendar.current.isDateInToday(workoutDate) {
+                                    WorkoutCacheService.save(result.workout)
+                                }
                                 saveExercisesToLibrary(result.workout.exercises)
                                 errorMessage = nil
                             }
