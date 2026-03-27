@@ -79,7 +79,7 @@ struct RPEAdjustmentService {
         entries.map { entry in
             let sets = entry.sets.enumerated().map { i, set in
                 if set.completedAt != nil {
-                    let rpeStr = set.rpe.map { " @RPE \($0)" } ?? ""
+                    let rpeStr = " @RPE \(set.rpe)"
                     return "  Set \(i + 1): COMPLETED - \(Int(set.weight))lbs x \(set.reps)\(rpeStr)"
                 } else {
                     return "  Set \(i + 1): PLANNED - \(Int(set.weight))lbs x \(set.reps)"

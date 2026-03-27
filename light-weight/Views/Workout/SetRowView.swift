@@ -6,7 +6,7 @@ struct SetRowView: View {
     let plannedSet: WorkoutSet?
     let isActive: Bool
     let isUpdating: Bool
-    let onLog: (Double, Int, Int?) -> Void
+    let onLog: (Double, Int, Int) -> Void
 
     @State private var weightText: String = ""
     @State private var repsText: String = ""
@@ -16,6 +16,10 @@ struct SetRowView: View {
     @State private var contentOpacity: Double = 1.0
 
     private var isCompleted: Bool { logSet.completedAt != nil }
+    private var canLog: Bool {
+        guard let rpe = Int(rpeText) else { return false }
+        return Double(weightText) != nil && Int(repsText) != nil && (0...10).contains(rpe)
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -52,7 +56,7 @@ struct SetRowView: View {
         }
         .onChange(of: logSet.rpe) {
             if isCompleted {
-                rpeText = logSet.rpe.map(String.init) ?? ""
+                rpeText = String(logSet.rpe)
             }
         }
         .overlay {
@@ -134,15 +138,13 @@ struct SetRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
         Button {
-            let weight = Double(weightText) ?? 0
-            let reps = Int(repsText) ?? 0
-            let rpe = Int(rpeText)
-            onLog(weight, reps, rpe)
+            onLog(Double(weightText)!, Int(repsText)!, Int(rpeText)!)
         } label: {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 20))
-                .foregroundStyle(Color.black.opacity(0.3))
+                .foregroundStyle(canLog ? Color(hex: 0x0A0A0A) : Color.black.opacity(0.15))
         }
+        .disabled(!canLog)
         .frame(width: 28)
     }
 
@@ -171,7 +173,7 @@ struct SetRowView: View {
     private func syncDisplayedValues() {
         weightText = logSet.weight > 0 ? "\(Int(logSet.weight))" : ""
         repsText = "\(logSet.reps)"
-        rpeText = logSet.rpe.map(String.init) ?? ""
+        rpeText = String(logSet.rpe)
     }
 
     private func syncPendingValues() {

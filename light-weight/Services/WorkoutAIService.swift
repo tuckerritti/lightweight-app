@@ -74,7 +74,7 @@ struct WorkoutAIService {
         Duration: \(log.durationMinutes) min
         Exercises:
         \(log.entries.map { entry in
-            "- \(entry.exerciseName): \(entry.sets.map { "\(Int($0.weight))lbs x\($0.reps)\($0.rpe.map { " @RPE\($0)" } ?? "")" }.joined(separator: ", "))"
+            "- \(entry.exerciseName): \(entry.sets.map { "\(Int($0.weight))lbs x\($0.reps) @RPE\($0.rpe)" }.joined(separator: ", "))"
         }.joined(separator: "\n"))
 
         Recent history:
