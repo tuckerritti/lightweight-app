@@ -6,6 +6,7 @@ struct ChatMessage: Identifiable {
     let role: Role
     var text: String
     var isApplied: Bool = false
+    var isError: Bool = false
 
     enum Role {
         case user, assistant
@@ -19,11 +20,12 @@ struct ChatDrawerView: View {
     var workoutName: String?
     var elapsedTime: String?
     var exerciseProgress: String?
-    var onSend: (String) async -> AsyncThrowingStream<ChatStreamEvent, Error>?
+    var onSend: (String, [ChatMessage]) async -> AsyncThrowingStream<ChatStreamEvent, Error>?
 
     @State private var messages: [ChatMessage] = []
     @State private var inputText = ""
     @State private var isSending = false
+    @State private var tappedInputBar = false
     private var isExpanded: Bool { selectedDetent != smallDetent }
     @FocusState private var isInputFocused: Bool
 
@@ -81,6 +83,7 @@ struct ChatDrawerView: View {
             .padding(.bottom, 8)
             .frame(height: isExpanded ? nil : 0, alignment: .top)
             .clipped()
+            .allowsHitTesting(isExpanded)
 
             Divider()
                 .opacity(isExpanded ? 1 : 0)
@@ -160,11 +163,13 @@ struct ChatDrawerView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            .simultaneousGesture(TapGesture().onEnded { tappedInputBar = true })
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-            if !isExpanded {
+            if tappedInputBar && !isExpanded {
                 selectedDetent = .large
             }
+            tappedInputBar = false
         }
         .onChange(of: pendingMessage) { _, newValue in
             guard let message = newValue else { return }
@@ -227,7 +232,9 @@ struct ChatDrawerView: View {
     private func streamResponse(for text: String) async {
         isSending = true
 
-        guard let stream = await onSend(text) else {
+        // Pass prior messages as history (exclude the just-appended user message)
+        let history = messages.dropLast().filter { !$0.isError }
+        guard let stream = await onSend(text, history) else {
             isSending = false
             return
         }
@@ -253,6 +260,7 @@ struct ChatDrawerView: View {
             } else {
                 messages[assistantIndex].text += "\n\nError: \(error.localizedDescription)"
             }
+            messages[assistantIndex].isError = true
         }
 
         isSending = false

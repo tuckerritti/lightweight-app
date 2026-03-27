@@ -4,7 +4,7 @@ import SwiftUI
 final class AppState {
     var chatDetent: PresentationDetent = .height(90)
     var pendingMessage: String?
-    var workoutActive = false
+    var isWorkoutActive = false
 }
 
 struct ContentView: View {
