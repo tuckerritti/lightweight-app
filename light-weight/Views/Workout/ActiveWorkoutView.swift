@@ -84,21 +84,18 @@ struct ActiveWorkoutView: View {
                 }
             }
         }
-        .overlay {
-            if !apiKey.isEmpty && showChat {
-                ChatDrawerView(
-                    selectedDetent: $chatDetent,
-                    pendingMessage: $chatPendingMessage,
-                    placeholder: "Add more tricep work...",
-                    workoutName: viewModel.workoutName,
-                    elapsedTime: viewModel.elapsedFormatted,
-                    exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
-                    onSend: { message, history in
-                        await streamMidWorkoutChat(message, history: history)
-                    }
-                )
+        .chatDrawer(
+            isPresented: !apiKey.isEmpty && showChat,
+            selectedDetent: $chatDetent,
+            pendingMessage: $chatPendingMessage,
+            placeholder: "Add more tricep work...",
+            workoutName: viewModel.workoutName,
+            elapsedTime: viewModel.elapsedFormatted,
+            exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
+            onSend: { message, history in
+                await streamMidWorkoutChat(message, history: history)
             }
-        }
+        )
         .sheet(item: $selectedExercise) { exercise in
             NavigationStack {
                 ExerciseDetailView(exercise: exercise)

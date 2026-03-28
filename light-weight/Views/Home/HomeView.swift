@@ -56,18 +56,15 @@ struct HomeView: View {
                 .onChange(of: profiles.count) { _, _ in
                     syncAPIKeyFromProfile()
                 }
-                .overlay {
-                    if !appState.isWorkoutActive {
-                        ChatDrawerView(
-                            selectedDetent: $state.chatDetent,
-                            pendingMessage: $state.pendingMessage,
-                            placeholder: "I only have 30 min today...",
-                            onSend: { message, history in
-                                await streamChat(message, history: history)
-                            }
-                        )
+                .chatDrawer(
+                    isPresented: !appState.isWorkoutActive,
+                    selectedDetent: $state.chatDetent,
+                    pendingMessage: $state.pendingMessage,
+                    placeholder: "I only have 30 min today...",
+                    onSend: { message, history in
+                        await streamChat(message, history: history)
                     }
-                }
+                )
             }
 
             if muscleMapExpanded {
