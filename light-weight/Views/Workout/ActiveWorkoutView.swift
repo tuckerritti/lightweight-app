@@ -27,6 +27,7 @@ struct ActiveWorkoutView: View {
     @State private var debriefRecentLogs: [WorkoutLogSnapshot] = []
     @State private var chatDetent: PresentationDetent = .height(90)
     @State private var chatPendingMessage: String?
+    @State private var showChat = true
 
     private var profile: UserProfile? { profiles.first }
 
@@ -59,10 +60,9 @@ struct ActiveWorkoutView: View {
                             message: "You've logged \(viewModel.completedSets) sets. This can't be undone.",
                             confirmTitle: "Discard",
                             isDestructive: true
-                        ) { viewModel.stop(); dismiss() }
+                        ) { dismissWorkout() }
                     } else {
-                        viewModel.stop()
-                        dismiss()
+                        dismissWorkout()
                     }
                 }
             }
@@ -85,7 +85,7 @@ struct ActiveWorkoutView: View {
             }
         }
         .overlay {
-            if !apiKey.isEmpty {
+            if !apiKey.isEmpty && showChat {
                 ChatDrawerView(
                     selectedDetent: $chatDetent,
                     pendingMessage: $chatPendingMessage,
@@ -130,6 +130,7 @@ struct ActiveWorkoutView: View {
         }
         .onAppear {
             appState.isWorkoutActive = true
+            appState.chatDetent = .height(90)
             syncAPIKeyFromProfile()
             viewModel.apiKey = apiKey
             viewModel.start()
@@ -252,7 +253,16 @@ struct ActiveWorkoutView: View {
     }
 
 
+    private func dismissWorkout() {
+        showChat = false
+        viewModel.stop()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            dismiss()
+        }
+    }
+
     private func finishWorkout() {
+        showChat = false
         debriefRecentLogs = recentLogs.prefix(5).map(makeSnapshot)
         let log = viewModel.finish()
         modelContext.insert(log)

@@ -26,6 +26,7 @@ struct ChatDrawerView: View {
     @State private var inputText = ""
     @State private var isSending = false
     @State private var tappedInputBar = false
+    @State private var isSheetPresented = true
     private var isExpanded: Bool { selectedDetent != smallDetent }
     @FocusState private var isInputFocused: Bool
 
@@ -33,7 +34,7 @@ struct ChatDrawerView: View {
 
     var body: some View {
         Color.clear
-            .sheet(isPresented: .constant(true)) {
+            .sheet(isPresented: $isSheetPresented) {
                 sheetContent
                     .presentationDetents(
                         [smallDetent, .medium, .large],
@@ -46,6 +47,7 @@ struct ChatDrawerView: View {
                     .presentationContentInteraction(.scrolls)
                     .interactiveDismissDisabled()
             }
+            .onAppear { isSheetPresented = true }
     }
 
     // MARK: - Sheet Content
