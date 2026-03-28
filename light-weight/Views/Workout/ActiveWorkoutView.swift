@@ -571,6 +571,7 @@ final class ActiveWorkoutViewModel {
             let preservedEntry = LogEntry(
                 exerciseName: entry.exerciseName,
                 muscleGroup: entry.muscleGroup,
+                targetMuscles: entry.targetMuscles,
                 sets: completedSets
             )
 
@@ -651,6 +652,7 @@ final class ActiveWorkoutViewModel {
         return WorkoutExercise(
             name: newExercise.name,
             muscleGroup: newExercise.muscleGroup,
+            targetMuscles: newExercise.targetMuscles,
             sets: actualCompletedSets + remainingSets
         )
     }
@@ -669,6 +671,7 @@ final class ActiveWorkoutViewModel {
         return WorkoutExercise(
             name: exerciseName,
             muscleGroup: muscleGroup,
+            targetMuscles: plannedExercise?.targetMuscles ?? [],
             sets: actualCompletedSets
         )
     }
