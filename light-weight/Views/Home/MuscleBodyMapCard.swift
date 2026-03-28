@@ -33,7 +33,7 @@ struct ExpandedMuscleMapView: View {
 
     var body: some View {
         ZStack {
-            Color.textTertiary
+            Color.scrim
                 .ignoresSafeArea()
                 .onTapGesture { isPresented = false }
 
@@ -78,7 +78,7 @@ struct ExpandedMuscleMapView: View {
             .padding(24)
             .background(Color.appSurface)
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: Color.textQuaternary, radius: 20, y: 10)
+            .shadow(color: Color.cardShadow, radius: 20, y: 10)
             .padding(.horizontal, 24)
         }
     }

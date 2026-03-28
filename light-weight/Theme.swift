@@ -84,6 +84,11 @@ extension Color {
     static let buttonPrimary = adaptive(light: 0x0A0A0A, dark: 0xFFFFFF)
     static let buttonPrimaryText = adaptive(light: 0xFFFFFF, dark: 0x0A0A0A)
 
+    // MARK: Overlays
+
+    static let scrim = Color.black.opacity(0.20)
+    static let cardShadow = Color.black.opacity(0.15)
+
     // MARK: Dividers
 
     static let divider = adaptive(
