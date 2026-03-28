@@ -316,9 +316,7 @@ struct ActiveWorkoutView: View {
                                     logger.info("Discarding stale chat workout update")
                                     continue
                                 }
-                            case .usage(let cost):
-                                appState.dailyCost = appState.dailyCost + cost
-                            case .text:
+                            case .usage, .text:
                                 break
                             }
                             continuation.yield(event)

@@ -37,11 +37,11 @@ struct ClaudeAPIService: Sendable {
 
     private var client: Anthropic { Anthropic(apiKey: apiKey) }
 
-    func send(systemPrompt: String, userMessage: String) async throws -> (String, TokenCost) {
+    func send(systemPrompt: String, userMessage: String) async throws -> String {
         try await send(systemPrompt: systemPrompt, messages: [Message(role: .user, content: [.text(userMessage)])])
     }
 
-    func send(systemPrompt: String, messages: [Message]) async throws -> (String, TokenCost) {
+    func send(systemPrompt: String, messages: [Message]) async throws -> String {
         let response = try await client.messages.createMessage(
             messages,
             model: .custom("claude-sonnet-4-6"),
@@ -53,10 +53,11 @@ struct ClaudeAPIService: Sendable {
             inputTokens: response.usage.inputTokens ?? 0,
             outputTokens: response.usage.outputTokens ?? 0
         )
+        AppState.shared?.recordCost(cost)
 
         for content in response.content {
             if case .text(let text, _) = content {
-                return (text, cost)
+                return text
             }
         }
         throw APIError.invalidResponse
@@ -91,6 +92,7 @@ struct ClaudeAPIService: Sendable {
                             finalCost.outputTokens = max(finalCost.outputTokens, messageDelta.usage.outputTokens ?? 0)
                         }
                     }
+                    AppState.shared?.recordCost(finalCost)
                     continuation.yield(.usage(finalCost))
                     continuation.finish()
                 } catch {

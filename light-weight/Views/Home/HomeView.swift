@@ -98,7 +98,7 @@ struct HomeView: View {
         }
 
         do {
-            let (workout, cost) = try await WorkoutAIService.generateDailyWorkout(
+            let workout = try await WorkoutAIService.generateDailyWorkout(
                 apiKey: apiKey,
                 profile: profileSnapshot,
                 recentLogs: logSnapshots,
@@ -106,7 +106,6 @@ struct HomeView: View {
                 healthContext: healthContext
             )
             todayWorkout = workout
-            appState.dailyCost = appState.dailyCost + cost
             WorkoutCacheService.save(workout)
             saveExercisesToLibrary(workout.exercises)
         } catch {
@@ -142,9 +141,7 @@ struct HomeView: View {
                                 }
                                 saveExercisesToLibrary(result.workout.exercises)
                                 errorMessage = nil
-                            case .usage(let cost):
-                                appState.dailyCost = appState.dailyCost + cost
-                            case .text:
+                            case .usage, .text:
                                 break
                             }
                             continuation.yield(event)

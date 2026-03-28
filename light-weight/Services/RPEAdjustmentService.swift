@@ -65,7 +65,7 @@ struct RPEAdjustmentService {
         """
 
         do {
-            let (response, _) = try await api.send(systemPrompt: systemPrompt, userMessage: userMessage)
+            let response = try await api.send(systemPrompt: systemPrompt, userMessage: userMessage)
             let jsonString = JSONExtractor.extractObject(from: response)
             guard let data = jsonString.data(using: .utf8) else { return nil }
             return try JSONDecoder().decode(Workout.self, from: data)
