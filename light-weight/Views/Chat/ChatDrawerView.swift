@@ -36,6 +36,7 @@ struct ChatDrawerView: View {
         Color.clear
             .sheet(isPresented: $isSheetPresented) {
                 sheetContent
+                    .toolbar(.hidden, for: .keyboard)
                     .presentationDetents(
                         [smallDetent, .medium, .large],
                         selection: $selectedDetent
