@@ -25,7 +25,7 @@ fi
 # Create a new simulator if we don't have one
 if [ -z "${UDID:-}" ]; then
   DEVICE_TYPE="com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"
-  RUNTIME="com.apple.CoreSimulator.SimRuntime.iOS-26-3"
+  RUNTIME=$(xcrun simctl list runtimes available | grep 'iOS' | tail -1 | sed 's/.*- //')
 
   echo "Creating iPhone 17 Pro simulator as '$SIM_NAME'..."
   UDID=$(xcrun simctl create "$SIM_NAME" "$DEVICE_TYPE" "$RUNTIME")
