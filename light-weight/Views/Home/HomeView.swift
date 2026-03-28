@@ -57,7 +57,7 @@ struct HomeView: View {
                     syncAPIKeyFromProfile()
                 }
                 .overlay {
-                    if !appState.isWorkoutActive {
+                    if !appState.isWorkoutActive && !apiKey.isEmpty {
                         ChatDrawerView(
                             selectedDetent: $state.chatDetent,
                             pendingMessage: $state.pendingMessage,
@@ -438,13 +438,9 @@ struct HomeView: View {
     private var emptyWorkoutSection: some View {
         VStack(spacing: 12) {
             if apiKey.isEmpty {
-                Text("Add your API key in Settings")
+                Text("Add your API key in Settings to get started.")
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.secondary)
-                Text("Or use the chat below to describe a workout.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
             } else {
                 Text("No workout planned")
                     .font(.system(size: 15, weight: .medium))
