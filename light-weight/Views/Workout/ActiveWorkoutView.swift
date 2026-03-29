@@ -23,7 +23,6 @@ struct ActiveWorkoutView: View {
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @State private var apiKey = ""
-    @State private var selectedExercise: Exercise?
     @State private var debriefRecentLogs: [WorkoutLogSnapshot] = []
     @State private var chatDetent: PresentationDetent = .height(90)
     @State private var chatPendingMessage: String?
@@ -96,15 +95,8 @@ struct ActiveWorkoutView: View {
                 await streamMidWorkoutChat(message, history: history)
             }
         )
-        .sheet(item: $selectedExercise, onDismiss: { showChat = true }) { exercise in
-            NavigationStack {
-                ExerciseDetailView(exercise: exercise)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") { selectedExercise = nil }
-                        }
-                    }
-            }
+        .navigationDestination(for: Exercise.self) { exercise in
+            ExerciseDetailView(exercise: exercise)
         }
         .sheet(isPresented: $showingDebrief, onDismiss: {
             finishedLog = nil
@@ -182,10 +174,7 @@ struct ActiveWorkoutView: View {
 
     private func exerciseSection(exerciseIndex: Int, entry: LogEntry) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                showChat = false
-                selectedExercise = exercises.first { $0.name == entry.exerciseName }
-            } label: {
+            NavigationLink(value: exercises.first { $0.name == entry.exerciseName }) {
                 HStack {
                     Text(entry.exerciseName)
                         .font(.custom("SpaceGrotesk-Bold", size: 18))
@@ -257,7 +246,6 @@ struct ActiveWorkoutView: View {
 
 
     private func dismissWorkout() {
-        selectedExercise = nil
         showChat = false
         viewModel.stop()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
