@@ -289,13 +289,13 @@ struct ActiveWorkoutView: View {
                             case .result(let result):
                                 if viewModel.shouldApplyAdjustment(generation: generation) {
                                     viewModel.applyModifiedWorkout(result.workout)
+                                    continuation.yield(event)
                                 } else {
                                     logger.info("Discarding stale chat workout update")
                                 }
                             case .usage, .text, .applying:
-                                break
+                                continuation.yield(event)
                             }
-                            continuation.yield(event)
                         }
                         continuation.finish()
                     } catch {
