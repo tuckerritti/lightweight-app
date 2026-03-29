@@ -28,6 +28,7 @@ struct ChatDrawerView: View {
     @State private var isSending = false
     @Environment(AppState.self) private var appState
     @State private var tappedInputBar = false
+    @State private var isSheetPresented = true
     private var isExpanded: Bool { selectedDetent != smallDetent }
     @FocusState private var isInputFocused: Bool
 
@@ -35,7 +36,7 @@ struct ChatDrawerView: View {
 
     var body: some View {
         Color.clear
-            .sheet(isPresented: .constant(true)) {
+            .sheet(isPresented: $isSheetPresented) {
                 sheetContent
                     .presentationDetents(
                         [smallDetent, .medium, .large],
@@ -43,11 +44,12 @@ struct ChatDrawerView: View {
                     )
                     .presentationDragIndicator(.hidden)
                     .presentationCornerRadius(44)
-                    .presentationBackground(.white)
+                    .presentationBackground(Color.chatDrawerBg)
                     .presentationBackgroundInteraction(.enabled(upThrough: .medium))
                     .presentationContentInteraction(.scrolls)
                     .interactiveDismissDisabled()
             }
+            .onAppear { isSheetPresented = true }
     }
 
     // MARK: - Sheet Content
@@ -56,7 +58,7 @@ struct ChatDrawerView: View {
         VStack(spacing: 0) {
             // Grab handle
             RoundedRectangle(cornerRadius: 2)
-                .fill(Color.black.opacity(0.15))
+                .fill(Color.textQuaternary)
                 .frame(width: 36, height: 4)
                 .padding(.top, 12)
                 .padding(.bottom, 4)
@@ -66,11 +68,11 @@ struct ChatDrawerView: View {
                 Text("Chat")
                     .font(.custom("SpaceGrotesk-Bold", size: 20))
                     .tracking(-0.4)
-                    .foregroundStyle(Color(hex: 0x0A0A0A))
+                    .foregroundStyle(Color.textPrimary)
                 if appState.showTokenCost, appState.dailyCost.estimatedCost > 0 {
                     Text("~$\(appState.dailyCost.estimatedCost, specifier: "%.4f")")
                         .font(.system(size: 13))
-                        .foregroundStyle(Color.black.opacity(0.3))
+                        .foregroundStyle(Color.textSecondary)
                 }
                 Spacer()
                 Button {
@@ -79,9 +81,9 @@ struct ChatDrawerView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Color.black.opacity(0.4))
+                        .foregroundStyle(Color.textSecondary)
                         .frame(width: 28, height: 28)
-                        .background(Color(hex: 0xF5F5F5))
+                        .background(Color.appSurface)
                         .clipShape(Circle())
                 }
             }
@@ -151,7 +153,7 @@ struct ChatDrawerView: View {
                     .focused($isInputFocused)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 11)
-                    .background(Color(hex: 0xF5F5F5))
+                    .background(Color.appSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 21))
                     .onSubmit { Task { await send() } }
 
@@ -162,8 +164,8 @@ struct ChatDrawerView: View {
                         .font(.system(size: 34))
                         .foregroundStyle(
                             inputText.trimmingCharacters(in: .whitespaces).isEmpty || isSending
-                            ? Color.black.opacity(0.15)
-                            : Color(hex: 0x0A0A0A)
+                            ? Color.textQuaternary
+                            : Color.textPrimary
                         )
                 }
                 .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty || isSending)
@@ -200,7 +202,7 @@ struct ChatDrawerView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color(hex: 0x2C2C2E))
+                    .background(Color.chatBubbleUser)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
             }
         case .assistant:
@@ -208,7 +210,7 @@ struct ChatDrawerView: View {
                 Text(message.text)
                     .font(.system(size: 15))
                     .lineSpacing(3)
-                    .foregroundStyle(Color(hex: 0x0A0A0A).opacity(0.85))
+                    .foregroundStyle(Color.textPrimary.opacity(0.85))
 
                 if message.isApplied {
                     HStack(spacing: 4) {
@@ -217,13 +219,13 @@ struct ChatDrawerView: View {
                         Text("Changes applied to your workout")
                             .font(.system(size: 14, weight: .medium))
                     }
-                    .foregroundStyle(Color(hex: 0x34C759))
+                    .foregroundStyle(Color.accent)
                 }
 
                 if appState.showTokenCost, let cost = message.tokenCost, cost.estimatedCost > 0 {
                     Text("~$\(cost.estimatedCost, specifier: "%.4f")")
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.black.opacity(0.25))
+                        .foregroundStyle(Color.textSecondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

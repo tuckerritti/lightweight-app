@@ -20,8 +20,6 @@ struct ActiveWorkoutView: View {
 
     let workout: Workout
     @State private var viewModel: ActiveWorkoutViewModel
-    @State private var showingCancelAlert = false
-    @State private var showingFinishAlert = false
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @State private var apiKey = ""
@@ -29,6 +27,7 @@ struct ActiveWorkoutView: View {
     @State private var debriefRecentLogs: [WorkoutLogSnapshot] = []
     @State private var chatDetent: PresentationDetent = .height(90)
     @State private var chatPendingMessage: String?
+    @State private var showChat = true
 
     private var profile: UserProfile? { profiles.first }
 
@@ -49,8 +48,35 @@ struct ActiveWorkoutView: View {
             }
             .padding(.bottom, 120)
         }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden()
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    if viewModel.completedSets > 0 {
+                        showNativeAlert(
+                            title: "Discard Workout?",
+                            message: "You've logged \(viewModel.completedSets) sets. This can't be undone.",
+                            confirmTitle: "Discard",
+                            isDestructive: true
+                        ) { dismissWorkout() }
+                    } else {
+                        dismissWorkout()
+                    }
+                }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") {
+                    showNativeAlert(
+                        title: "Finish Workout?",
+                        message: "Save your workout with \(viewModel.completedSets) sets completed?",
+                        confirmTitle: "Finish",
+                        isDestructive: false
+                    ) { finishWorkout() }
+                }
+                .disabled(viewModel.completedSets == 0)
+            }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Done") {
@@ -59,7 +85,7 @@ struct ActiveWorkoutView: View {
             }
         }
         .overlay {
-            if !apiKey.isEmpty {
+            if !apiKey.isEmpty && showChat {
                 ChatDrawerView(
                     selectedDetent: $chatDetent,
                     pendingMessage: $chatPendingMessage,
@@ -72,38 +98,6 @@ struct ActiveWorkoutView: View {
                     }
                 )
             }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden()
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") {
-                    if viewModel.completedSets > 0 {
-                        showingCancelAlert = true
-                    } else {
-                        viewModel.stop()
-                        dismiss()
-                    }
-                }
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Done") {
-                    showingFinishAlert = true
-                }
-                .disabled(viewModel.completedSets == 0)
-            }
-        }
-        .alert("Discard Workout?", isPresented: $showingCancelAlert) {
-            Button("Discard", role: .destructive) { viewModel.stop(); dismiss() }
-            Button("Keep Going", role: .cancel) { }
-        } message: {
-            Text("You've logged \(viewModel.completedSets) sets. This can't be undone.")
-        }
-        .alert("Finish Workout?", isPresented: $showingFinishAlert) {
-            Button("Finish") { finishWorkout() }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Save your workout with \(viewModel.completedSets) sets completed?")
         }
         .sheet(item: $selectedExercise) { exercise in
             NavigationStack {
@@ -136,6 +130,7 @@ struct ActiveWorkoutView: View {
         }
         .onAppear {
             appState.isWorkoutActive = true
+            appState.chatDetent = .height(90)
             syncAPIKeyFromProfile()
             viewModel.apiKey = apiKey
             viewModel.start()
@@ -154,19 +149,19 @@ struct ActiveWorkoutView: View {
             Text(viewModel.workoutName)
                 .font(.custom("SpaceGrotesk-Bold", size: 28))
                 .tracking(-0.84)
-                .foregroundStyle(Color(hex: 0x0A0A0A))
+                .foregroundStyle(Color.textPrimary)
             HStack(spacing: 12) {
                 Text(viewModel.elapsedFormatted)
                     .font(.custom("SpaceGrotesk-Bold", size: 15))
-                    .foregroundStyle(Color(hex: 0x34C759))
+                    .foregroundStyle(Color.accent)
                     .contentTransition(.numericText())
                 Text("\(viewModel.completedExercises) of \(viewModel.totalExercises) exercises")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.black.opacity(0.35))
+                    .foregroundStyle(Color.textSecondary)
                 if appState.showTokenCost, appState.dailyCost.estimatedCost > 0 {
                     Text("~$\(appState.dailyCost.estimatedCost, specifier: "%.4f")")
                         .font(.system(size: 13))
-                        .foregroundStyle(Color.black.opacity(0.35))
+                        .foregroundStyle(Color.textSecondary)
                 }
             }
         }
@@ -197,12 +192,12 @@ struct ActiveWorkoutView: View {
                     Text(entry.exerciseName)
                         .font(.custom("SpaceGrotesk-Bold", size: 18))
                         .tracking(-0.18)
-                        .foregroundStyle(Color(hex: 0x0A0A0A))
+                        .foregroundStyle(Color.textPrimary)
                     Spacer()
                     Text(entry.muscleGroup.uppercased())
                         .font(.system(size: 12, weight: .medium))
                         .tracking(0.72)
-                        .foregroundStyle(Color.black.opacity(0.3))
+                        .foregroundStyle(Color.textTertiary)
                 }
             }
             .buttonStyle(.plain)
@@ -224,7 +219,7 @@ struct ActiveWorkoutView: View {
             }
             .font(.system(size: 11, weight: .semibold))
             .tracking(0.5)
-            .foregroundStyle(Color.black.opacity(0.3))
+            .foregroundStyle(Color.textTertiary)
             .padding(.horizontal, 20)
             .padding(.bottom, 8)
 
@@ -263,7 +258,16 @@ struct ActiveWorkoutView: View {
     }
 
 
+    private func dismissWorkout() {
+        showChat = false
+        viewModel.stop()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            dismiss()
+        }
+    }
+
     private func finishWorkout() {
+        showChat = false
         debriefRecentLogs = recentLogs.prefix(5).map(makeSnapshot)
         let log = viewModel.finish()
         modelContext.insert(log)
@@ -339,6 +343,31 @@ struct ActiveWorkoutView: View {
     }
 }
 
+// MARK: - Native Alert Helper
+
+private func showNativeAlert(
+    title: String,
+    message: String,
+    confirmTitle: String,
+    isDestructive: Bool,
+    onConfirm: @escaping () -> Void
+) {
+    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+          let root = windowScene.windows.first?.rootViewController else { return }
+
+    var topVC = root
+    while let presented = topVC.presentedViewController {
+        topVC = presented
+    }
+
+    let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+    alert.addAction(UIAlertAction(title: confirmTitle, style: isDestructive ? .destructive : .default) { _ in
+        onConfirm()
+    })
+    topVC.present(alert, animated: true)
+}
+
 // MARK: - View Model
 
 @Observable
@@ -390,7 +419,7 @@ final class ActiveWorkoutViewModel {
                 muscleGroup: exercise.muscleGroup,
                 targetMuscles: exercise.targetMuscles,
                 sets: exercise.sets.map { plannedSet in
-                    LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: 0)
+                    LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: plannedSet.targetRpe ?? 0)
                 }
             )
         }
@@ -439,6 +468,8 @@ final class ActiveWorkoutViewModel {
     }
 
     func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
+        let planned = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
+
         entries[exerciseIndex].sets[setIndex].weight = weight
         entries[exerciseIndex].sets[setIndex].reps = reps
         entries[exerciseIndex].sets[setIndex].rpe = rpe
@@ -450,12 +481,15 @@ final class ActiveWorkoutViewModel {
             workoutExercises[exerciseIndex].sets[setIndex].reps = reps
         }
 
-        let planned = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
         if let planned {
             timerService.start(seconds: planned.restSeconds)
         }
 
-        if !apiKey.isEmpty {
+        let missedTarget = planned.map { p in
+            weight != p.weight || reps != p.reps || (p.targetRpe != nil && rpe != p.targetRpe)
+        } ?? false
+
+        if !apiKey.isEmpty && missedTarget {
             requestRPEAdjustment()
         }
     }
@@ -510,7 +544,7 @@ final class ActiveWorkoutViewModel {
                         let setIndex = completedSets.count + i
                         if setIndex < newExercise.sets.count {
                             let planned = newExercise.sets[setIndex]
-                            sets.append(LogSet(reps: planned.reps, weight: planned.weight, rpe: 0))
+                            sets.append(LogSet(reps: planned.reps, weight: planned.weight, rpe: planned.targetRpe ?? 0))
                         }
                     }
                     updatedEntries.append(LogEntry(
@@ -525,7 +559,7 @@ final class ActiveWorkoutViewModel {
                         exerciseName: newExercise.name,
                         muscleGroup: newExercise.muscleGroup,
                         targetMuscles: newExercise.targetMuscles,
-                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: 0) }
+                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0) }
                     ))
                     updatedExercises.append(newExercise)
                 }
@@ -534,7 +568,7 @@ final class ActiveWorkoutViewModel {
                     exerciseName: newExercise.name,
                     muscleGroup: newExercise.muscleGroup,
                     targetMuscles: newExercise.targetMuscles,
-                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: 0) }
+                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0) }
                 ))
                 updatedExercises.append(newExercise)
             }
@@ -550,6 +584,7 @@ final class ActiveWorkoutViewModel {
             let preservedEntry = LogEntry(
                 exerciseName: entry.exerciseName,
                 muscleGroup: entry.muscleGroup,
+                targetMuscles: entry.targetMuscles,
                 sets: completedSets
             )
 
@@ -630,6 +665,7 @@ final class ActiveWorkoutViewModel {
         return WorkoutExercise(
             name: newExercise.name,
             muscleGroup: newExercise.muscleGroup,
+            targetMuscles: newExercise.targetMuscles,
             sets: actualCompletedSets + remainingSets
         )
     }
@@ -648,6 +684,7 @@ final class ActiveWorkoutViewModel {
         return WorkoutExercise(
             name: exerciseName,
             muscleGroup: muscleGroup,
+            targetMuscles: plannedExercise?.targetMuscles ?? [],
             sets: actualCompletedSets
         )
     }
