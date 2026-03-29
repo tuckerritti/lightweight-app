@@ -170,24 +170,34 @@ struct ActiveWorkoutView: View {
         }
     }
 
+    private func exerciseHeader(entry: LogEntry) -> some View {
+        HStack {
+            Text(entry.exerciseName)
+                .font(.custom("SpaceGrotesk-Bold", size: 18))
+                .tracking(-0.18)
+                .foregroundStyle(Color.textPrimary)
+            Spacer()
+            Text(entry.muscleGroup.uppercased())
+                .font(.system(size: 12, weight: .medium))
+                .tracking(0.72)
+                .foregroundStyle(Color.textTertiary)
+        }
+    }
+
     // MARK: - Exercise Section
 
     private func exerciseSection(exerciseIndex: Int, entry: LogEntry) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            NavigationLink(value: exercises.first { $0.name == entry.exerciseName }) {
-                HStack {
-                    Text(entry.exerciseName)
-                        .font(.custom("SpaceGrotesk-Bold", size: 18))
-                        .tracking(-0.18)
-                        .foregroundStyle(Color.textPrimary)
-                    Spacer()
-                    Text(entry.muscleGroup.uppercased())
-                        .font(.system(size: 12, weight: .medium))
-                        .tracking(0.72)
-                        .foregroundStyle(Color.textTertiary)
+            Group {
+                if let exercise = exercises.first(where: { $0.name == entry.exerciseName }) {
+                    NavigationLink(value: exercise) {
+                        exerciseHeader(entry: entry)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    exerciseHeader(entry: entry)
                 }
             }
-            .buttonStyle(.plain)
             .padding(.horizontal, 20)
             .padding(.top, 20)
             .padding(.bottom, 10)
