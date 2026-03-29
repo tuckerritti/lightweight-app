@@ -103,6 +103,11 @@ struct SettingsView: View {
                             Toggle("Show daily API cost", isOn: $state.showTokenCost)
                                 .tint(Color(hex: 0x34C759))
                         }
+                        settingsSection("DATA") {
+                            NavigationLink("Import Workouts (CSV)") {
+                                CSVImportView()
+                            }
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
