@@ -317,7 +317,6 @@ struct ActiveWorkoutView: View {
                                     viewModel.applyModifiedWorkout(result.workout)
                                 } else {
                                     logger.info("Discarding stale chat workout update")
-                                    continue
                                 }
                             case .usage, .text, .applying:
                                 break
