@@ -74,6 +74,10 @@ struct SettingsView: View {
                         TextField("e.g. Bad left shoulder, avoid overhead", text: binding(\.injuries), axis: .vertical)
                             .lineLimit(2...4)
                     }
+                    settingsSection("REST TIMER") {
+                        Toggle("Show rest timer between sets", isOn: $state.showRestTimer)
+                            .tint(Color(hex: 0x34C759))
+                    }
                     settingsSection("REST TIMER SOUNDS") {
                         VStack(spacing: 0) {
                             ForEach(RestSound.allCases) { sound in

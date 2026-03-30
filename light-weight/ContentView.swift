@@ -11,6 +11,12 @@ final class AppState {
     var showTokenCost = UserDefaults.standard.bool(forKey: "showTokenCost") {
         didSet { UserDefaults.standard.set(showTokenCost, forKey: "showTokenCost") }
     }
+    var showRestTimer: Bool = {
+        if UserDefaults.standard.object(forKey: "showRestTimer") == nil { return true }
+        return UserDefaults.standard.bool(forKey: "showRestTimer")
+    }() {
+        didSet { UserDefaults.standard.set(showRestTimer, forKey: "showRestTimer") }
+    }
 
     var dailyCost: TokenCost {
         didSet { saveDailyCost() }

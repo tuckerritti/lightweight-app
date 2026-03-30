@@ -134,7 +134,9 @@ struct ActiveWorkoutView: View {
             apiKey = UserProfileService.loadAPIKey()
             viewModel.apiKey = apiKey
             viewModel.start()
-            viewModel.timerService.requestPermission()
+            if appState.showRestTimer {
+                viewModel.timerService.requestPermission()
+            }
             ExerciseLibraryService.persist(workoutExercises: viewModel.currentWorkout.exercises, existingExercises: exercises, modelContext: modelContext)
             Task {
                 try? await Task.sleep(for: .milliseconds(600))
@@ -179,7 +181,7 @@ struct ActiveWorkoutView: View {
 
     @ViewBuilder
     private var timerSection: some View {
-        if viewModel.timerService.isRunning {
+        if appState.showRestTimer && viewModel.timerService.isRunning {
             RestTimerView(timerService: viewModel.timerService)
                 .padding(.horizontal, 20)
         }
@@ -459,7 +461,7 @@ final class ActiveWorkoutViewModel {
             workoutExercises[exerciseIndex].sets[setIndex].reps = reps
         }
 
-        if let planned {
+        if let planned, AppState.shared?.showRestTimer == true {
             timerService.start(seconds: planned.restSeconds)
         }
 
@@ -604,7 +606,7 @@ final class ActiveWorkoutViewModel {
     }
 
     private func resyncTimerIfNeeded() {
-        guard timerService.isRunning else { return }
+        guard timerService.isRunning, AppState.shared?.showRestTimer == true else { return }
 
         // Find the last completed set and its new planned rest
         for (ei, entry) in entries.enumerated().reversed() {
