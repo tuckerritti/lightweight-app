@@ -131,9 +131,6 @@ struct SettingsView: View {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
             }
-            .onDisappear {
-                ICloudBackupService.backupAll(modelContext: modelContext)
-            }
         }
         .onAppear {
             syncProfileState()
@@ -143,6 +140,7 @@ struct SettingsView: View {
         }
         .onDisappear {
             apiKeySaveTask?.cancel()
+            ICloudBackupService.backupAll(modelContext: modelContext)
         }
     }
 
