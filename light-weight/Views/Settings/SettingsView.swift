@@ -114,20 +114,6 @@ struct SettingsView: View {
                         }
                         .padding(.vertical, -12)
                     }
-                    settingsSection("DATA") {
-                        NavigationLink {
-                            CSVImportView()
-                        } label: {
-                            HStack {
-                                Text("Import Workouts (CSV)")
-                                    .foregroundStyle(Color.textPrimary)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(Color.textTertiary)
-                            }
-                        }
-                    }
                     settingsSection("ADVANCED") {
                         NavigationLink(destination: AdvancedSettingsView()) {
                             HStack {
@@ -139,10 +125,6 @@ struct SettingsView: View {
                                     .foregroundStyle(Color.textSecondary)
                             }
                         }
-                    }
-                    settingsSection("TOKEN COST") {
-                        Toggle("Show daily API cost", isOn: $state.showTokenCost)
-                            .tint(Color(hex: 0x34C759))
                     }
                 }
                 .padding(.horizontal, 20)

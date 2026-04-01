@@ -15,6 +15,20 @@ struct AdvancedSettingsView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
+                    settingsSection("DATA") {
+                        NavigationLink {
+                            CSVImportView()
+                        } label: {
+                            HStack {
+                                Text("Import Workouts (CSV)")
+                                    .foregroundStyle(Color.textPrimary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Color.textSecondary)
+                            }
+                        }
+                    }
                     settingsSection("TOKEN COST") {
                         Toggle("Show daily API cost", isOn: $state.showTokenCost)
                             .tint(Color(hex: 0x34C759))
