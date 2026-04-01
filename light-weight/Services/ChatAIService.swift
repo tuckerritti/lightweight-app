@@ -7,6 +7,7 @@ private let logger = Logger(subsystem: "com.light-weight", category: "ChatAI")
 
 enum ChatStreamEvent: Sendable {
     case text(String)
+    case applying
     case result(ChatResult)
     case usage(TokenCost)
 }
@@ -17,6 +18,9 @@ struct ChatResult: Sendable, Codable {
 }
 
 struct ChatAIService {
+
+    private static let separatorPattern = /---\s*JSON/
+        .ignoresCase()
 
     static func stream(
         apiKey: String,
@@ -92,25 +96,32 @@ struct ChatAIService {
                 var sentExplanationUpTo = 0
 
                 do {
+                    var hitSeparator = false
                     for try await chunk in tokenStream {
                         switch chunk {
                         case .text(let token):
                             accumulated += token
 
-                            // Stream explanation text (everything before ---JSON)
-                            if let separatorRange = accumulated.range(of: "---JSON") {
-                                let explanation = String(accumulated[accumulated.startIndex..<separatorRange.lowerBound])
+                            // Stream explanation text (everything before separator)
+                            if let match = accumulated.firstMatch(of: separatorPattern) {
+                                let explanation = String(accumulated[accumulated.startIndex..<match.range.lowerBound])
                                 if explanation.count > sentExplanationUpTo {
                                     let new = String(explanation.dropFirst(sentExplanationUpTo))
                                     continuation.yield(.text(new))
                                     sentExplanationUpTo = explanation.count
                                 }
+                                if !hitSeparator {
+                                    hitSeparator = true
+                                    continuation.yield(.applying)
+                                }
                             } else {
-                                // Haven't hit separator yet — stream everything so far
-                                if accumulated.count > sentExplanationUpTo {
-                                    let new = String(accumulated.dropFirst(sentExplanationUpTo))
+                                // Haven't hit separator yet — stream with holdback buffer
+                                // to avoid leaking partial separator text (e.g. "---")
+                                let safeEnd = max(sentExplanationUpTo, accumulated.count - 10)
+                                if safeEnd > sentExplanationUpTo {
+                                    let new = String(accumulated.dropFirst(sentExplanationUpTo).prefix(safeEnd - sentExplanationUpTo))
                                     continuation.yield(.text(new))
-                                    sentExplanationUpTo = accumulated.count
+                                    sentExplanationUpTo = safeEnd
                                 }
                             }
                         case .usage(let cost):
@@ -135,10 +146,10 @@ struct ChatAIService {
         let explanation: String
         let jsonString: String
 
-        if let separatorRange = response.range(of: "---JSON") {
-            explanation = response[response.startIndex..<separatorRange.lowerBound]
+        if let match = response.firstMatch(of: separatorPattern) {
+            explanation = response[response.startIndex..<match.range.lowerBound]
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            let afterSeparator = String(response[separatorRange.upperBound...])
+            let afterSeparator = String(response[match.range.upperBound...])
             jsonString = JSONExtractor.extractObject(from: afterSeparator)
         } else {
             // Fallback: try to find JSON in the whole response

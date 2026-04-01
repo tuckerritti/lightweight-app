@@ -150,7 +150,7 @@ struct HomeView: View {
                                 todayWorkout = result.workout
                                 WorkoutCacheService.save(result.workout)
                                 errorMessage = nil
-                            case .usage, .text:
+                            case .usage, .text, .applying:
                                 break
                             }
                             continuation.yield(event)
