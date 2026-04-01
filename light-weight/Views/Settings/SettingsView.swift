@@ -2,6 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct SettingsView: View {
+    let onReturnHome: () -> Void
+
     @Query private var profiles: [UserProfile]
     @Environment(\.modelContext) private var modelContext
     @State private var apiKey = ""
@@ -115,7 +117,7 @@ struct SettingsView: View {
                         .padding(.vertical, -12)
                     }
                     settingsSection("ADVANCED") {
-                        NavigationLink(destination: AdvancedSettingsView()) {
+                        NavigationLink(destination: AdvancedSettingsView(onReturnHome: onReturnHome)) {
                             HStack {
                                 Text("Advanced settings")
                                     .foregroundStyle(Color.textPrimary)

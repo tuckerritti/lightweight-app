@@ -3,6 +3,8 @@ import SwiftData
 import UniformTypeIdentifiers
 
 struct CSVImportView: View {
+    let onReturnHome: () -> Void
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var exercises: [Exercise]
@@ -162,7 +164,7 @@ struct CSVImportView: View {
             }
             Spacer()
             Button {
-                dismiss()
+                onReturnHome()
             } label: {
                 Text("Done")
                     .font(.system(size: 17, weight: .semibold))

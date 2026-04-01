@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct AdvancedSettingsView: View {
+    let onReturnHome: () -> Void
+
     @Environment(AppState.self) private var appState
 
     var body: some View {
@@ -17,7 +19,7 @@ struct AdvancedSettingsView: View {
                 VStack(spacing: 24) {
                     settingsSection("DATA") {
                         NavigationLink {
-                            CSVImportView()
+                            CSVImportView(onReturnHome: onReturnHome)
                         } label: {
                             HStack {
                                 Text("Import Workouts (CSV)")

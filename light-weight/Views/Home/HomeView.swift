@@ -77,7 +77,7 @@ struct HomeView: View {
                     switch destination {
                     case .library: ExerciseLibraryView()
                     case .history: HistoryListView()
-                    case .settings: SettingsView()
+                    case .settings: SettingsView(onReturnHome: returnToHome)
                     case .activeWorkout(let workout): ActiveWorkoutView(workout: workout)
                     }
                 }
@@ -87,6 +87,10 @@ struct HomeView: View {
                 ExpandedMuscleMapView(logs: recentLogs, isPresented: $muscleMapExpanded)
             }
         }
+    }
+
+    private func returnToHome() {
+        navigationPath = NavigationPath()
     }
 
     // MARK: - AI Generation
