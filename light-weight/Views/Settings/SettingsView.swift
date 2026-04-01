@@ -3,6 +3,7 @@ import SwiftData
 
 struct SettingsView: View {
     let onReturnHome: () -> Void
+    private let genderOptions = ["Male", "Female"]
 
     @Query private var profiles: [UserProfile]
     @Environment(\.modelContext) private var modelContext
@@ -59,6 +60,16 @@ struct SettingsView: View {
                                     .foregroundStyle(.red)
                             }
                         }
+                    }
+                    settingsSection("GENDER") {
+                        Picker("Gender", selection: binding(\.gender)) {
+                            ForEach(genderOptions, id: \.self) { option in
+                                Text(option).tag(option)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .tint(Color(hex: 0x34C759))
                     }
                     settingsSection("GOALS") {
                         TextField("e.g. Build muscle, lose fat", text: binding(\.goals), axis: .vertical)
