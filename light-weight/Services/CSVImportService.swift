@@ -9,7 +9,6 @@ enum CSVColumnRole: String, CaseIterable, Identifiable {
     case rpe = "RPE"
     case date = "Date"
     case workoutName = "Workout Name"
-    case setOrder = "Set Order"
     case skip = "Skip"
 
     var id: String { rawValue }
@@ -63,7 +62,6 @@ enum CSVImportService {
             if lower.contains("rpe") { return .rpe }
             if lower.contains("date") { return .date }
             if lower.contains("workout") { return .workoutName }
-            if lower.contains("set") { return .setOrder }
             return .skip
         }
     }

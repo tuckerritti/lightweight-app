@@ -204,10 +204,14 @@ struct CSVImportView: View {
             return
         }
 
+        // Clear existing library and history — CSV import replaces all data
+        try? modelContext.delete(model: Exercise.self)
+        try? modelContext.delete(model: WorkoutLog.self)
+
         let result = CSVImportService.importWorkouts(
             rows: rows,
             mapping: mapping,
-            existingExercises: exercises,
+            existingExercises: [],
             modelContext: modelContext
         )
         importedCount = result.workoutCount
