@@ -183,12 +183,14 @@ enum CSVImportService {
     ) async throws {
         let systemPrompt = """
         You are an exercise classification assistant. Given a list of exercise names, respond with ONLY valid JSON matching this schema:
-        {"exercises": [{"name": "Exercise Name", "muscleGroup": "Muscle Group", "targetMuscles": [{"muscle": "chest", "weight": 0.6}]}]}
+        {"exercises": [{"name": "Exercise Name", "muscleGroup": "Muscle Group", "targetMuscles": [{"muscle": "chest", "weight": 0.6}], "description": "Brief one-line description", "instructions": ["Step 1", "Step 2"]}]}
 
         Guidelines:
         - muscleGroup: high-level grouping (e.g. "Chest", "Back", "Shoulders", "Legs", "Biceps", "Triceps", "Core")
         - targetMuscles: list muscles worked with a weight (0-1) representing that muscle's share of the work. Weights should sum to ~1.0.
         - Valid muscle values: \(Muscle.validPromptValues)
+        - description: a short one-line description of the exercise.
+        - instructions: step-by-step instructions for how to perform the exercise (3-5 concise steps).
         - Return the exercise name exactly as provided.
         """
 
@@ -213,6 +215,10 @@ enum CSVImportService {
             guard let classification = classificationMap[key] else { continue }
             exercise.muscleGroup = classification.muscleGroup
             exercise.targetMuscles = classification.targetMuscles
+            exercise.exerciseDescription = classification.description
+            if let instructions = classification.instructions {
+                exercise.instructions = instructions
+            }
         }
 
         // Backfill WorkoutLog entries
@@ -240,6 +246,8 @@ enum CSVImportService {
         var name: String
         var muscleGroup: String
         var targetMuscles: [TargetMuscle]
+        var description: String?
+        var instructions: [String]?
     }
 
     // MARK: - Helpers
