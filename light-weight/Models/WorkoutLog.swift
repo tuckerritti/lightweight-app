@@ -49,14 +49,12 @@ struct LogEntry: Codable, Hashable, Sendable, Identifiable {
     var id: UUID
     var exerciseName: String
     var muscleGroup: String
-    var targetMuscles: [TargetMuscle]
     var sets: [LogSet]
 
-    init(exerciseName: String, muscleGroup: String, targetMuscles: [TargetMuscle] = [], sets: [LogSet]) {
+    init(exerciseName: String, muscleGroup: String, sets: [LogSet]) {
         self.id = UUID()
         self.exerciseName = exerciseName
         self.muscleGroup = muscleGroup
-        self.targetMuscles = targetMuscles
         self.sets = sets
     }
 
@@ -65,7 +63,6 @@ struct LogEntry: Codable, Hashable, Sendable, Identifiable {
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         exerciseName = try container.decode(String.self, forKey: .exerciseName)
         muscleGroup = try container.decode(String.self, forKey: .muscleGroup)
-        targetMuscles = try container.decodeIfPresent([TargetMuscle].self, forKey: .targetMuscles) ?? []
         sets = try container.decode([LogSet].self, forKey: .sets)
     }
 
