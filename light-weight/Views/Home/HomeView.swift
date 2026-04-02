@@ -105,7 +105,14 @@ struct HomeView: View {
         guard todayWorkout == nil else { return }
 
         if let cached = WorkoutCacheService.loadToday() {
-            todayWorkout = cached
+            let canonicalWorkout = ExerciseNameResolver.canonicalize(
+                workout: cached,
+                references: exerciseSnapshots.map(ExerciseReference.init)
+            )
+            todayWorkout = canonicalWorkout
+            if canonicalWorkout != cached {
+                WorkoutCacheService.save(canonicalWorkout)
+            }
             return
         }
 
@@ -130,7 +137,6 @@ struct HomeView: View {
             )
             todayWorkout = workout
             WorkoutCacheService.save(workout)
-            ExerciseLibraryService.persist(workoutExercises: workout.exercises, existingExercises: exercises, modelContext: modelContext)
         } catch {
             logger.error("Workout generation failed: \(error)")
             errorMessage = error.localizedDescription
@@ -160,7 +166,6 @@ struct HomeView: View {
                             case .result(let result):
                                 todayWorkout = result.workout
                                 WorkoutCacheService.save(result.workout)
-                                ExerciseLibraryService.persist(workoutExercises: result.workout.exercises, existingExercises: exercises, modelContext: modelContext)
                                 errorMessage = nil
                             case .usage, .text, .applying:
                                 break
@@ -191,7 +196,7 @@ struct HomeView: View {
     }
 
     private var logSnapshots: [WorkoutLogSnapshot] {
-        recentLogs.prefix(10).map { WorkoutLogSnapshot(from: $0) }
+        recentLogs.prefix(14).map { WorkoutLogSnapshot(from: $0) }
     }
 
     private var exerciseSnapshots: [ExerciseSnapshot] {
