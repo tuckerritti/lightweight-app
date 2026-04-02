@@ -233,11 +233,13 @@ struct CSVImportView: View {
             step = .classifying
             Task {
                 do {
+                    let currentExercises = try modelContext.fetch(FetchDescriptor<Exercise>())
+                    let currentLogs = try modelContext.fetch(FetchDescriptor<WorkoutLog>())
                     try await CSVImportService.classifyExercises(
                         names: result.unclassifiedExerciseNames,
                         apiKey: apiKey,
-                        exercises: exercises,
-                        workoutLogs: workoutLogs,
+                        exercises: currentExercises,
+                        workoutLogs: currentLogs,
                         modelContext: modelContext
                     )
                 } catch {
