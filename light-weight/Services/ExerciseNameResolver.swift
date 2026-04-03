@@ -38,7 +38,8 @@ struct ExerciseReference {
     init(_ entry: LogEntry) {
         self.init(
             name: entry.exerciseName,
-            muscleGroup: entry.muscleGroup
+            muscleGroup: entry.muscleGroup,
+            targetMuscles: entry.targetMuscles
         )
     }
 }
@@ -72,6 +73,9 @@ enum ExerciseNameResolver {
 
             if let index = indicesByNormalizedName[normalizedName] {
                 canonicalEntries[index].sets.append(contentsOf: canonicalEntry.sets)
+                if canonicalEntries[index].targetMuscles.isEmpty && !canonicalEntry.targetMuscles.isEmpty {
+                    canonicalEntries[index].targetMuscles = canonicalEntry.targetMuscles
+                }
             } else {
                 indicesByNormalizedName[normalizedName] = canonicalEntries.count
                 canonicalEntries.append(canonicalEntry)
@@ -158,6 +162,7 @@ enum ExerciseNameResolver {
             return LogEntry(
                 exerciseName: trimmedName,
                 muscleGroup: trimmedGroup,
+                targetMuscles: entry.targetMuscles,
                 sets: entry.sets
             )
         }
@@ -165,6 +170,7 @@ enum ExerciseNameResolver {
         return LogEntry(
             exerciseName: reference.name,
             muscleGroup: reference.muscleGroup,
+            targetMuscles: reference.targetMuscles.isEmpty ? entry.targetMuscles : reference.targetMuscles,
             sets: entry.sets
         )
     }

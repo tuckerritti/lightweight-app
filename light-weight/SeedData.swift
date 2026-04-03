@@ -91,6 +91,20 @@ enum SeedData {
             context.insert(exercise)
         }
 
+        let exerciseLookup = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
+        func logEntry(_ exerciseName: String, sets: [LogSet]) -> LogEntry {
+            guard let exercise = exerciseLookup[exerciseName] else {
+                preconditionFailure("Missing seed exercise for log entry: \(exerciseName)")
+            }
+
+            return LogEntry(
+                exerciseName: exercise.name,
+                muscleGroup: exercise.muscleGroup,
+                targetMuscles: exercise.targetMuscles,
+                sets: sets
+            )
+        }
+
         // MARK: - User Profile
 
         let profile = UserProfile(
@@ -114,90 +128,90 @@ enum SeedData {
         let logs: [(String, Int, [LogEntry])] = [
             // Week 4 (oldest)
             ("Upper Body Push", 25, [
-                LogEntry(exerciseName: "Bench Press", muscleGroup: "Chest", sets: [
+                logEntry("Bench Press", sets: [
                     LogSet(reps: 8, weight: 125, rpe: 7, completedAt: daysAgo(25)),
                     LogSet(reps: 8, weight: 125, rpe: 8, completedAt: daysAgo(25)),
                     LogSet(reps: 7, weight: 125, rpe: 9, completedAt: daysAgo(25)),
                 ]),
-                LogEntry(exerciseName: "Overhead Press", muscleGroup: "Shoulders", sets: [
+                logEntry("Overhead Press", sets: [
                     LogSet(reps: 10, weight: 55, rpe: 7, completedAt: daysAgo(25)),
                     LogSet(reps: 10, weight: 55, rpe: 8, completedAt: daysAgo(25)),
                     LogSet(reps: 9, weight: 55, rpe: 9, completedAt: daysAgo(25)),
                 ]),
-                LogEntry(exerciseName: "Tricep Pushdown", muscleGroup: "Triceps", sets: [
+                logEntry("Tricep Pushdown", sets: [
                     LogSet(reps: 15, weight: 25, rpe: 7, completedAt: daysAgo(25)),
                     LogSet(reps: 15, weight: 25, rpe: 7, completedAt: daysAgo(25)),
                 ]),
             ]),
             ("Upper Body Pull", 23, [
-                LogEntry(exerciseName: "Barbell Row", muscleGroup: "Back", sets: [
+                logEntry("Barbell Row", sets: [
                     LogSet(reps: 8, weight: 115, rpe: 7, completedAt: daysAgo(23)),
                     LogSet(reps: 8, weight: 115, rpe: 8, completedAt: daysAgo(23)),
                     LogSet(reps: 8, weight: 115, rpe: 8, completedAt: daysAgo(23)),
                 ]),
-                LogEntry(exerciseName: "Pull-Up", muscleGroup: "Back", sets: [
+                logEntry("Pull-Up", sets: [
                     LogSet(reps: 8, weight: 0, rpe: 8, completedAt: daysAgo(23)),
                     LogSet(reps: 7, weight: 0, rpe: 9, completedAt: daysAgo(23)),
                     LogSet(reps: 6, weight: 0, rpe: 9, completedAt: daysAgo(23)),
                 ]),
-                LogEntry(exerciseName: "Barbell Curl", muscleGroup: "Biceps", sets: [
+                logEntry("Barbell Curl", sets: [
                     LogSet(reps: 12, weight: 45, rpe: 7, completedAt: daysAgo(23)),
                     LogSet(reps: 12, weight: 45, rpe: 7, completedAt: daysAgo(23)),
                 ]),
             ]),
             // Week 3
             ("Lower Body", 18, [
-                LogEntry(exerciseName: "Squat", muscleGroup: "Legs", sets: [
+                logEntry("Squat", sets: [
                     LogSet(reps: 8, weight: 155, rpe: 7, completedAt: daysAgo(18)),
                     LogSet(reps: 8, weight: 155, rpe: 8, completedAt: daysAgo(18)),
                     LogSet(reps: 7, weight: 155, rpe: 9, completedAt: daysAgo(18)),
                 ]),
-                LogEntry(exerciseName: "Romanian Deadlift", muscleGroup: "Legs", sets: [
+                logEntry("Romanian Deadlift", sets: [
                     LogSet(reps: 10, weight: 115, rpe: 7, completedAt: daysAgo(18)),
                     LogSet(reps: 10, weight: 115, rpe: 8, completedAt: daysAgo(18)),
                     LogSet(reps: 10, weight: 115, rpe: 8, completedAt: daysAgo(18)),
                 ]),
             ]),
             ("Upper Body Push", 16, [
-                LogEntry(exerciseName: "Bench Press", muscleGroup: "Chest", sets: [
+                logEntry("Bench Press", sets: [
                     LogSet(reps: 8, weight: 130, rpe: 7, completedAt: daysAgo(16)),
                     LogSet(reps: 8, weight: 130, rpe: 8, completedAt: daysAgo(16)),
                     LogSet(reps: 8, weight: 130, rpe: 8, completedAt: daysAgo(16)),
                 ]),
-                LogEntry(exerciseName: "Incline Dumbbell Press", muscleGroup: "Chest", sets: [
+                logEntry("Incline Dumbbell Press", sets: [
                     LogSet(reps: 10, weight: 40, rpe: 7, completedAt: daysAgo(16)),
                     LogSet(reps: 10, weight: 40, rpe: 8, completedAt: daysAgo(16)),
                     LogSet(reps: 10, weight: 40, rpe: 8, completedAt: daysAgo(16)),
                 ]),
-                LogEntry(exerciseName: "Lateral Raise", muscleGroup: "Shoulders", sets: [
+                logEntry("Lateral Raise", sets: [
                     LogSet(reps: 15, weight: 15, rpe: 7, completedAt: daysAgo(16)),
                     LogSet(reps: 15, weight: 15, rpe: 7, completedAt: daysAgo(16)),
                 ]),
             ]),
             // Week 2
             ("Upper Body Pull", 11, [
-                LogEntry(exerciseName: "Barbell Row", muscleGroup: "Back", sets: [
+                logEntry("Barbell Row", sets: [
                     LogSet(reps: 8, weight: 120, rpe: 7, completedAt: daysAgo(11)),
                     LogSet(reps: 8, weight: 120, rpe: 8, completedAt: daysAgo(11)),
                     LogSet(reps: 8, weight: 120, rpe: 8, completedAt: daysAgo(11)),
                 ]),
-                LogEntry(exerciseName: "Pull-Up", muscleGroup: "Back", sets: [
+                logEntry("Pull-Up", sets: [
                     LogSet(reps: 9, weight: 0, rpe: 7, completedAt: daysAgo(11)),
                     LogSet(reps: 8, weight: 0, rpe: 8, completedAt: daysAgo(11)),
                     LogSet(reps: 7, weight: 0, rpe: 9, completedAt: daysAgo(11)),
                 ]),
-                LogEntry(exerciseName: "Barbell Curl", muscleGroup: "Biceps", sets: [
+                logEntry("Barbell Curl", sets: [
                     LogSet(reps: 12, weight: 50, rpe: 7, completedAt: daysAgo(11)),
                     LogSet(reps: 12, weight: 50, rpe: 7, completedAt: daysAgo(11)),
                 ]),
             ]),
             ("Lower Body", 9, [
-                LogEntry(exerciseName: "Squat", muscleGroup: "Legs", sets: [
+                logEntry("Squat", sets: [
                     LogSet(reps: 8, weight: 165, rpe: 7, completedAt: daysAgo(9)),
                     LogSet(reps: 8, weight: 165, rpe: 8, completedAt: daysAgo(9)),
                     LogSet(reps: 7, weight: 165, rpe: 9, completedAt: daysAgo(9)),
                 ]),
-                LogEntry(exerciseName: "Romanian Deadlift", muscleGroup: "Legs", sets: [
+                logEntry("Romanian Deadlift", sets: [
                     LogSet(reps: 10, weight: 125, rpe: 7, completedAt: daysAgo(9)),
                     LogSet(reps: 10, weight: 125, rpe: 8, completedAt: daysAgo(9)),
                     LogSet(reps: 10, weight: 125, rpe: 9, completedAt: daysAgo(9)),
@@ -205,69 +219,69 @@ enum SeedData {
             ]),
             // Week 1 (most recent)
             ("Upper Body Push", 4, [
-                LogEntry(exerciseName: "Bench Press", muscleGroup: "Chest", sets: [
+                logEntry("Bench Press", sets: [
                     LogSet(reps: 8, weight: 135, rpe: 7, completedAt: daysAgo(4)),
                     LogSet(reps: 8, weight: 135, rpe: 8, completedAt: daysAgo(4)),
                     LogSet(reps: 8, weight: 135, rpe: 8, completedAt: daysAgo(4)),
                 ]),
-                LogEntry(exerciseName: "Overhead Press", muscleGroup: "Shoulders", sets: [
+                logEntry("Overhead Press", sets: [
                     LogSet(reps: 10, weight: 65, rpe: 7, completedAt: daysAgo(4)),
                     LogSet(reps: 10, weight: 65, rpe: 8, completedAt: daysAgo(4)),
                     LogSet(reps: 9, weight: 65, rpe: 9, completedAt: daysAgo(4)),
                 ]),
-                LogEntry(exerciseName: "Tricep Pushdown", muscleGroup: "Triceps", sets: [
+                logEntry("Tricep Pushdown", sets: [
                     LogSet(reps: 15, weight: 30, rpe: 7, completedAt: daysAgo(4)),
                     LogSet(reps: 15, weight: 30, rpe: 7, completedAt: daysAgo(4)),
                 ]),
             ]),
             ("Upper Body Pull", 2, [
-                LogEntry(exerciseName: "Barbell Row", muscleGroup: "Back", sets: [
+                logEntry("Barbell Row", sets: [
                     LogSet(reps: 8, weight: 125, rpe: 7, completedAt: daysAgo(2)),
                     LogSet(reps: 8, weight: 125, rpe: 7, completedAt: daysAgo(2)),
                     LogSet(reps: 8, weight: 125, rpe: 8, completedAt: daysAgo(2)),
                 ]),
-                LogEntry(exerciseName: "Pull-Up", muscleGroup: "Back", sets: [
+                logEntry("Pull-Up", sets: [
                     LogSet(reps: 10, weight: 0, rpe: 7, completedAt: daysAgo(2)),
                     LogSet(reps: 9, weight: 0, rpe: 8, completedAt: daysAgo(2)),
                     LogSet(reps: 8, weight: 0, rpe: 9, completedAt: daysAgo(2)),
                 ]),
-                LogEntry(exerciseName: "Barbell Curl", muscleGroup: "Biceps", sets: [
+                logEntry("Barbell Curl", sets: [
                     LogSet(reps: 12, weight: 55, rpe: 7, completedAt: daysAgo(2)),
                     LogSet(reps: 12, weight: 55, rpe: 7, completedAt: daysAgo(2)),
                 ]),
             ]),
             ("Lower Body", 3, [
-                LogEntry(exerciseName: "Leg Press", muscleGroup: "Quads", sets: [
+                logEntry("Leg Press", sets: [
                     LogSet(reps: 10, weight: 200, rpe: 7, completedAt: daysAgo(3)),
                     LogSet(reps: 10, weight: 200, rpe: 8, completedAt: daysAgo(3)),
                     LogSet(reps: 10, weight: 200, rpe: 8, completedAt: daysAgo(3)),
                 ]),
-                LogEntry(exerciseName: "Leg Curl", muscleGroup: "Hamstrings", sets: [
+                logEntry("Leg Curl", sets: [
                     LogSet(reps: 12, weight: 60, rpe: 7, completedAt: daysAgo(3)),
                     LogSet(reps: 12, weight: 60, rpe: 8, completedAt: daysAgo(3)),
                 ]),
-                LogEntry(exerciseName: "Hip Thrust", muscleGroup: "Glutes", sets: [
+                logEntry("Hip Thrust", sets: [
                     LogSet(reps: 10, weight: 135, rpe: 7, completedAt: daysAgo(3)),
                     LogSet(reps: 10, weight: 135, rpe: 8, completedAt: daysAgo(3)),
                     LogSet(reps: 10, weight: 135, rpe: 8, completedAt: daysAgo(3)),
                 ]),
-                LogEntry(exerciseName: "Calf Raise", muscleGroup: "Calves", sets: [
+                logEntry("Calf Raise", sets: [
                     LogSet(reps: 15, weight: 90, rpe: 7, completedAt: daysAgo(3)),
                     LogSet(reps: 15, weight: 90, rpe: 7, completedAt: daysAgo(3)),
                     LogSet(reps: 15, weight: 90, rpe: 7, completedAt: daysAgo(3)),
                 ]),
             ]),
             ("Accessories", 1, [
-                LogEntry(exerciseName: "Barbell Shrug", muscleGroup: "Traps", sets: [
+                logEntry("Barbell Shrug", sets: [
                     LogSet(reps: 12, weight: 135, rpe: 7, completedAt: daysAgo(1)),
                     LogSet(reps: 12, weight: 135, rpe: 8, completedAt: daysAgo(1)),
                     LogSet(reps: 12, weight: 135, rpe: 8, completedAt: daysAgo(1)),
                 ]),
-                LogEntry(exerciseName: "Wrist Curl", muscleGroup: "Forearms", sets: [
+                logEntry("Wrist Curl", sets: [
                     LogSet(reps: 15, weight: 30, rpe: 7, completedAt: daysAgo(1)),
                     LogSet(reps: 15, weight: 30, rpe: 7, completedAt: daysAgo(1)),
                 ]),
-                LogEntry(exerciseName: "Cable Crunch", muscleGroup: "Core", sets: [
+                logEntry("Cable Crunch", sets: [
                     LogSet(reps: 15, weight: 50, rpe: 7, completedAt: daysAgo(1)),
                     LogSet(reps: 15, weight: 50, rpe: 8, completedAt: daysAgo(1)),
                     LogSet(reps: 15, weight: 50, rpe: 8, completedAt: daysAgo(1)),

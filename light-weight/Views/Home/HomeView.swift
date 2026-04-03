@@ -91,7 +91,6 @@ struct HomeView: View {
             if muscleMapExpanded {
                 ExpandedMuscleMapView(
                     logs: recentLogs,
-                    exercises: exercises,
                     bodyGender: muscleMapGender,
                     isPresented: $muscleMapExpanded
                 )
@@ -272,7 +271,6 @@ struct HomeView: View {
             StatCard(title: "STREAK", value: "\(recentLogs.streak)", highlight: recentLogs.streak > 0)
             MuscleBodyMapCard(
                 logs: recentLogs,
-                exercises: exercises,
                 bodyGender: muscleMapGender,
                 isExpanded: $muscleMapExpanded
             )

@@ -73,6 +73,23 @@ enum ExerciseLibraryService {
         }
     }
 
+    /// Returns resolved targetMuscles for the given entries, using the library as source of truth.
+    /// Used to backfill a WorkoutLog's entries after exercise resolution.
+    static func resolvedTargetMuscles(
+        for entries: [LogEntry],
+        modelContext: ModelContext
+    ) -> [String: [TargetMuscle]] {
+        let existingExercises = sortedExercises(modelContext: modelContext)
+        var result: [String: [TargetMuscle]] = [:]
+        for exercise in existingExercises {
+            let normalizedName = ExerciseNameResolver.normalize(exercise.name)
+            if result[normalizedName] == nil {
+                result[normalizedName] = exercise.targetMuscles
+            }
+        }
+        return result
+    }
+
 
     private static func sortedExercises(modelContext: ModelContext) -> [Exercise] {
         ((try? modelContext.fetch(FetchDescriptor<Exercise>())) ?? [])

@@ -3,14 +3,13 @@ import MuscleMap
 
 struct MuscleBodyMapCard: View {
     let logs: [WorkoutLog]
-    let exercises: [Exercise]
     let bodyGender: BodyGender
     @Binding var isExpanded: Bool
 
     var body: some View {
         VStack(spacing: 4) {
             BodyView(gender: bodyGender, side: .front, style: .minimal)
-                .heatmap(muscleIntensities(from: logs, exercises: exercises), colorScale: volumeColorScale)
+                .heatmap(muscleIntensities(from: logs), colorScale: volumeColorScale)
                 .frame(height: 80)
                 .allowsHitTesting(false)
             Text("VOLUME")
@@ -31,7 +30,6 @@ struct MuscleBodyMapCard: View {
 
 struct ExpandedMuscleMapView: View {
     let logs: [WorkoutLog]
-    let exercises: [Exercise]
     let bodyGender: BodyGender
     @Binding var isPresented: Bool
 
@@ -58,7 +56,7 @@ struct ExpandedMuscleMapView: View {
                 HStack(spacing: 20) {
                     VStack(spacing: 8) {
                         BodyView(gender: bodyGender, side: .front, style: .minimal)
-                            .heatmap(muscleIntensities(from: logs, exercises: exercises), colorScale: volumeColorScale)
+                            .heatmap(muscleIntensities(from: logs), colorScale: volumeColorScale)
                             .frame(height: 240)
                             .allowsHitTesting(false)
                         Text("FRONT")
@@ -69,7 +67,7 @@ struct ExpandedMuscleMapView: View {
 
                     VStack(spacing: 8) {
                         BodyView(gender: bodyGender, side: .back, style: .minimal)
-                            .heatmap(muscleIntensities(from: logs, exercises: exercises), colorScale: volumeColorScale)
+                            .heatmap(muscleIntensities(from: logs), colorScale: volumeColorScale)
                             .frame(height: 240)
                             .allowsHitTesting(false)
                         Text("BACK")
@@ -103,15 +101,10 @@ private let volumeColorScale = HeatmapColorScale(colors: [
     .red
 ])
 
-private func muscleIntensities(from logs: [WorkoutLog], exercises: [Exercise]) -> [MuscleIntensity] {
+private func muscleIntensities(from logs: [WorkoutLog]) -> [MuscleIntensity] {
     let calendar = Calendar.current
     let today = calendar.startOfDay(for: .now)
     var volumeByMuscle: [Muscle: Double] = Dictionary(uniqueKeysWithValues: exerciseMuscles.map { ($0, 0.0) })
-
-    let muscleLookup = Dictionary(
-        exercises.map { ($0.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), $0.targetMuscles) },
-        uniquingKeysWith: { first, _ in first }
-    )
 
     for log in logs {
         guard let finishedAt = log.finishedAt else { continue }
@@ -124,8 +117,7 @@ private func muscleIntensities(from logs: [WorkoutLog], exercises: [Exercise]) -
                 .reduce(0.0) { $0 + $1.weight * Double($1.reps) }
             guard entryVolume > 0 else { continue }
 
-            let targetMuscles = muscleLookup[entry.exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()] ?? []
-            for target in targetMuscles {
+            for target in entry.targetMuscles {
                 if let muscle = Muscle(rawValue: target.muscle) {
                     volumeByMuscle[muscle, default: 0] += entryVolume * target.weight
                 }

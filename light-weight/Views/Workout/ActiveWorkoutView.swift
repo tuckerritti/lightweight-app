@@ -288,6 +288,19 @@ struct ActiveWorkoutView: View {
                 modelContext: modelContext
             )
 
+            // Backfill targetMuscles on the log's entries so the muscle map works
+            let resolved = ExerciseLibraryService.resolvedTargetMuscles(
+                for: log.entries,
+                modelContext: modelContext
+            )
+            var updatedEntries = log.entries
+            for i in updatedEntries.indices {
+                let key = ExerciseNameResolver.normalize(updatedEntries[i].exerciseName)
+                if let muscles = resolved[key], !muscles.isEmpty {
+                    updatedEntries[i].targetMuscles = muscles
+                }
+            }
+            log.entries = updatedEntries
         }
     }
 
@@ -417,6 +430,7 @@ final class ActiveWorkoutViewModel {
             LogEntry(
                 exerciseName: exercise.name,
                 muscleGroup: exercise.muscleGroup,
+                targetMuscles: exercise.targetMuscles,
                 sets: exercise.sets.map { plannedSet in
                     LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: plannedSet.targetRpe ?? 0)
                 }
@@ -564,6 +578,7 @@ final class ActiveWorkoutViewModel {
                     updatedEntries.append(LogEntry(
                         exerciseName: existing.exerciseName,
                         muscleGroup: existing.muscleGroup,
+                        targetMuscles: existing.targetMuscles,
                         sets: sets
                     ))
                     updatedExercises.append(mergedExercise(newExercise, existingIndex: existingIndex, completedSets: completedSets))
@@ -571,6 +586,7 @@ final class ActiveWorkoutViewModel {
                     updatedEntries.append(LogEntry(
                         exerciseName: newExercise.name,
                         muscleGroup: newExercise.muscleGroup,
+                        targetMuscles: existing.targetMuscles,
                         sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0) }
                     ))
                     updatedExercises.append(newExercise)
@@ -579,6 +595,7 @@ final class ActiveWorkoutViewModel {
                 updatedEntries.append(LogEntry(
                     exerciseName: newExercise.name,
                     muscleGroup: newExercise.muscleGroup,
+                    targetMuscles: newExercise.targetMuscles,
                     sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0) }
                 ))
                 updatedExercises.append(newExercise)
@@ -595,6 +612,7 @@ final class ActiveWorkoutViewModel {
             let preservedEntry = LogEntry(
                 exerciseName: entry.exerciseName,
                 muscleGroup: entry.muscleGroup,
+                targetMuscles: entry.targetMuscles,
                 sets: completedSets
             )
 
@@ -719,7 +737,12 @@ final class ActiveWorkoutViewModel {
         let completedEntries = entries.compactMap { entry -> LogEntry? in
             let completedSets = entry.sets.filter { $0.completedAt != nil }
             guard !completedSets.isEmpty else { return nil }
-            return LogEntry(exerciseName: entry.exerciseName, muscleGroup: entry.muscleGroup, sets: completedSets)
+            return LogEntry(
+                exerciseName: entry.exerciseName,
+                muscleGroup: entry.muscleGroup,
+                targetMuscles: entry.targetMuscles,
+                sets: completedSets
+            )
         }
         let log = WorkoutLog(
             workoutName: workoutName,
