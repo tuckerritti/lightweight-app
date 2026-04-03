@@ -90,6 +90,10 @@ struct SettingsView: View {
                         Toggle("Show rest timer between sets", isOn: $state.showRestTimer)
                             .tint(Color(hex: 0x34C759))
                     }
+                    settingsSection("RPE MODE") {
+                        Toggle("AI suggests weight + RPE only (no reps)", isOn: $state.rpeMode)
+                            .tint(Color(hex: 0x34C759))
+                    }
                     settingsSection("REST TIMER SOUNDS") {
                         VStack(spacing: 0) {
                             ForEach(RestSound.allCases) { sound in

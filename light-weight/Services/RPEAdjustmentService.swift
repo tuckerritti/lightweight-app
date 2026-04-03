@@ -11,7 +11,8 @@ struct RPEAdjustmentService {
     static func adjustWorkout(
         apiKey: String,
         workout: Workout,
-        progress: [LogEntry]
+        progress: [LogEntry],
+        rpeMode: Bool = false
     ) async -> Workout? {
         let api = ClaudeAPIService(apiKey: apiKey)
 
@@ -50,6 +51,7 @@ struct RPEAdjustmentService {
         - If all RPEs are on target, return the workout unchanged
         - Be conservative — small adjustments are better than dramatic ones
         - Never return duplicate exercise names. If an exercise matches the current workout, reuse its exact name.
+        \(rpeMode ? "\nIMPORTANT: RPE Mode is ON. For remaining planned sets, set \"reps\" to 0. Only adjust weight, rest, and targetRpe. The user decides their own rep count." : "")
         """
 
         guard let workoutJSON = try? JSONEncoder().encode(workout),

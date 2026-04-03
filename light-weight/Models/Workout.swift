@@ -54,7 +54,7 @@ struct WorkoutSet: Codable, Sendable, Hashable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        reps = max(1, min(100, try container.decode(Int.self, forKey: .reps)))
+        reps = max(0, min(100, try container.decode(Int.self, forKey: .reps)))
         weight = max(0, min(2000, try container.decode(Double.self, forKey: .weight)))
         restSeconds = max(10, min(600, try container.decodeIfPresent(Int.self, forKey: .restSeconds) ?? 90))
         targetRpe = try container.decodeIfPresent(Int.self, forKey: .targetRpe).map { max(1, min(10, $0)) }

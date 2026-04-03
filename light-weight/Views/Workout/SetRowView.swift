@@ -6,6 +6,7 @@ struct SetRowView: View {
     let plannedSet: WorkoutSet?
     let isActive: Bool
     let isUpdating: Bool
+    var rpeMode: Bool = false
     let onLog: (Double, Int, Int) -> Void
     var onEdit: ((Double, Int, Int) -> Void)? = nil
 
@@ -198,7 +199,7 @@ struct SetRowView: View {
             .font(.system(size: 14))
             .foregroundStyle(Color.textTertiary)
             .frame(maxWidth: .infinity)
-        Text(plannedSet.map { "\($0.reps)" } ?? "—")
+        Text(rpeMode ? "—" : (plannedSet.map { "\($0.reps)" } ?? "—"))
             .font(.system(size: 14))
             .foregroundStyle(Color.textTertiary)
             .frame(maxWidth: .infinity)
@@ -214,14 +215,14 @@ struct SetRowView: View {
 
     private func syncDisplayedValues() {
         weightText = logSet.weight > 0 ? "\(Int(logSet.weight))" : ""
-        repsText = "\(logSet.reps)"
+        repsText = (rpeMode && logSet.completedAt == nil) ? "" : (logSet.reps > 0 ? "\(logSet.reps)" : "")
         rpeText = logSet.rpe > 0 ? String(logSet.rpe) : ""
     }
 
     private func syncPendingValues() {
         guard !isCompleted else { return }
         weightText = logSet.weight > 0 ? "\(Int(logSet.weight))" : ""
-        repsText = "\(logSet.reps)"
+        repsText = rpeMode ? "" : (logSet.reps > 0 ? "\(logSet.reps)" : "")
     }
 }
 
