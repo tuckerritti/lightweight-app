@@ -45,7 +45,7 @@ struct ChatAIService {
 
         Only when the user asks you to \(mode) the workout, respond in this EXACT format — explanation first, then JSON after a separator:
 
-        Write 1-2 sentences explaining what you did and why.
+        Write a detailed explanation of what you changed and why — mention specific exercises, sets, reps, or weight choices and the reasoning behind them (e.g. muscle balance, fatigue management, progressive overload, the user's goals or injuries). Be thorough so the user understands your coaching decisions.
         ---JSON
         {
           "name": "Workout Name",
