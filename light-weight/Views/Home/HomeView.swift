@@ -103,6 +103,7 @@ struct HomeView: View {
     }
 
     private func returnToHome() {
+        todayWorkout = nil
         navigationPath = NavigationPath()
     }
 

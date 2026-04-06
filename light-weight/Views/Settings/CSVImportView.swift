@@ -35,6 +35,8 @@ struct CSVImportView: View {
         }
         .navigationTitle("Import CSV")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(step == .classifying)
+        .interactiveDismissDisabled(step == .classifying)
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.commaSeparatedText]) { result in
             handleFile(result)
         }
@@ -147,6 +149,7 @@ struct CSVImportView: View {
             ProgressView(value: Double(batchesCompleted), total: Double(totalBatches))
                 .tint(Color.accent)
                 .padding(.horizontal, 40)
+                .animation(.easeInOut(duration: 0.25), value: batchesCompleted)
             Text("Using AI to identify muscle groups")
                 .font(.system(size: 14))
                 .foregroundStyle(Color.textSecondary)
@@ -228,9 +231,10 @@ struct CSVImportView: View {
             return
         }
 
-        // Clear existing library and history — CSV import replaces all data
+        // Clear existing library, history, and cached workout — CSV import replaces all data
         try? modelContext.delete(model: Exercise.self)
         try? modelContext.delete(model: WorkoutLog.self)
+        WorkoutCacheService.clearAll()
 
         let result = CSVImportService.importWorkouts(
             rows: rows,
