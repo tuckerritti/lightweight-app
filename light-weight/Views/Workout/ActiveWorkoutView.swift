@@ -18,8 +18,6 @@ struct ActiveWorkoutView: View {
     @Query private var profiles: [UserProfile]
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
 
-    let workout: Workout
-    @State private var viewModel: ActiveWorkoutViewModel
     @State private var showingDebrief = false
     @State private var finishedLog: WorkoutLog?
     @State private var apiKey = ""
@@ -29,11 +27,7 @@ struct ActiveWorkoutView: View {
     @State private var showChat = false
 
     private var profile: UserProfile? { profiles.first }
-
-    init(workout: Workout) {
-        self.workout = workout
-        self._viewModel = State(initialValue: ActiveWorkoutViewModel(workout: workout))
-    }
+    private var viewModel: ActiveWorkoutViewModel { appState.activeViewModel! }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,6 +40,8 @@ struct ActiveWorkoutView: View {
                     ForEach(Array(viewModel.entries.enumerated()), id: \.element.id) { exerciseIndex, entry in
                         exerciseSection(exerciseIndex: exerciseIndex, entry: entry)
                     }
+
+                    cancelButton
                 }
                 .padding(.bottom, 120)
             }
@@ -58,17 +54,12 @@ struct ActiveWorkoutView: View {
         })
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") {
-                    if viewModel.completedSets > 0 {
-                        showNativeAlert(
-                            title: "Discard Workout?",
-                            message: "You've logged \(viewModel.completedSets) sets. This can't be undone.",
-                            confirmTitle: "Discard",
-                            isDestructive: true
-                        ) { dismissWorkout() }
-                    } else {
-                        dismissWorkout()
-                    }
+                Button {
+                    showChat = false
+                    appState.isWorkoutActive = false
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
                 }
             }
             ToolbarItem(placement: .confirmationAction) {
@@ -104,6 +95,7 @@ struct ActiveWorkoutView: View {
         .sheet(isPresented: $showingDebrief, onDismiss: {
             finishedLog = nil
             debriefRecentLogs = []
+            appState.activeViewModel = nil
             dismiss()
         }) {
             if let log = finishedLog {
@@ -126,16 +118,17 @@ struct ActiveWorkoutView: View {
             apiKey = UserProfileService.loadAPIKey()
             viewModel.apiKey = apiKey
             viewModel.start()
+            viewModel.resumeTimer()
             if appState.showRestTimer {
                 viewModel.timerService.requestPermission()
             }
-            // Exercises are persisted to library when the workout finishes
             Task {
                 try? await Task.sleep(for: .milliseconds(600))
                 showChat = true
             }
         }
         .onDisappear {
+            viewModel.pauseTimer()
             appState.isWorkoutActive = false
         }
     }
@@ -255,15 +248,39 @@ struct ActiveWorkoutView: View {
         }
     }
 
+    // MARK: - Cancel Button
+
+    private var cancelButton: some View {
+        Button {
+            if viewModel.completedSets > 0 {
+                showNativeAlert(
+                    title: "Discard Workout?",
+                    message: "You've logged \(viewModel.completedSets) sets. This can't be undone.",
+                    confirmTitle: "Discard",
+                    isDestructive: true
+                ) { dismissWorkout() }
+            } else {
+                dismissWorkout()
+            }
+        } label: {
+            Text("Cancel Workout")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 32)
+    }
+
     // MARK: - Actions
-
-
 
     private func dismissWorkout() {
         showChat = false
         viewModel.stop()
+        dismiss()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            dismiss()
+            appState.activeViewModel = nil
         }
     }
 
@@ -443,7 +460,11 @@ final class ActiveWorkoutViewModel {
         hasStarted = true
         startedAt = .now
         elapsedSeconds = 0
-        elapsedTimer?.invalidate()
+        resumeTimer()
+    }
+
+    func resumeTimer() {
+        guard elapsedTimer == nil else { return }
         elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self else { return }
             MainActor.assumeIsolated {
@@ -452,9 +473,13 @@ final class ActiveWorkoutViewModel {
         }
     }
 
-    func stop() {
+    func pauseTimer() {
         elapsedTimer?.invalidate()
         elapsedTimer = nil
+    }
+
+    func stop() {
+        pauseTimer()
         timerService.stop()
     }
 

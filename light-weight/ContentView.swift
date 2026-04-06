@@ -9,6 +9,7 @@ final class AppState {
 
     var chatDetent: PresentationDetent = .height(90)
     var pendingMessage: String?
+    var activeViewModel: ActiveWorkoutViewModel?
     var isWorkoutActive = false
     var showTokenCost = UserDefaults.standard.bool(forKey: "showTokenCost") {
         didSet {
@@ -55,6 +56,7 @@ final class AppState {
 
         chatDetent = .height(90)
         pendingMessage = nil
+        activeViewModel = nil
         isWorkoutActive = false
         showTokenCost = false
         showRestTimer = true
