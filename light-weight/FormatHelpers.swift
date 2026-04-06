@@ -6,3 +6,8 @@ extension Double {
         truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(self))" : String(format: "%.1f", self)
     }
 }
+
+/// Parses a weight string that may use either `.` or `,` as the decimal separator.
+func parseWeight(_ text: String) -> Double? {
+    Double(text.replacingOccurrences(of: ",", with: "."))
+}

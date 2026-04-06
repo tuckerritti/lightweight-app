@@ -21,7 +21,7 @@ struct SetRowView: View {
     private var isCompleted: Bool { logSet.completedAt != nil }
     private var canLog: Bool {
         guard let rpe = Int(rpeText) else { return false }
-        return Double(weightText) != nil && Int(repsText) != nil && (1...10).contains(rpe)
+        return parseWeight(weightText) != nil && Int(repsText) != nil && (1...10).contains(rpe)
     }
 
     var body: some View {
@@ -143,7 +143,7 @@ struct SetRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
         Button {
-            guard let weight = Double(weightText),
+            guard let weight = parseWeight(weightText),
                   let reps = Int(repsText),
                   let rpe = Int(rpeText) else { return }
             onEdit?(weight, reps, rpe)
@@ -182,7 +182,7 @@ struct SetRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
         Button {
-            guard let weight = Double(weightText),
+            guard let weight = parseWeight(weightText),
                   let reps = Int(repsText),
                   let rpe = Int(rpeText) else { return }
             onLog(weight, reps, rpe)
