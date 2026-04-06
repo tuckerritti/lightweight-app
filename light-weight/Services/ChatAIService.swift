@@ -63,6 +63,7 @@ struct ChatAIService {
         All weights must be in 2.5 lb increments (real plate math). No odd numbers like 186 — use 185 or 187.5.
         Never return duplicate exercise names. If an exercise matches the current workout or the library, reuse its exact name.
         For new exercises, follow the naming style of the existing library (e.g., if "Tricep Pushdown - Cable, Straight Bar" exists, a rope variation should be "Tricep Pushdown - Cable, Rope").
+        \(profile.rpeMode ? "\nIMPORTANT: RPE Mode is ON. Set \"reps\" to 0 for every set. Only suggest weight and targetRpe. The user decides their own rep count." : "")
 
         \(currentWorkout != nil ? "The user has an existing workout. Modify it based on their request — keep exercises they didn't mention, adjust what they asked about." : "Create a new workout from scratch based on the user's request.")
         \(isActiveWorkout ? "\nIMPORTANT: This workout is in progress. Sets marked COMPLETED in the progress below cannot be changed. You MUST include them exactly as-is in your response. Only modify PLANNED sets and exercises." : "")

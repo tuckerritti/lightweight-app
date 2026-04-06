@@ -113,12 +113,7 @@ struct ActiveWorkoutView: View {
                 WorkoutDebriefView(
                     log: log,
                     recentLogs: debriefRecentLogs,
-                    profile: UserProfileSnapshot(
-                        goals: profile?.goals ?? "",
-                        schedule: profile?.schedule ?? "",
-                        equipment: profile?.equipment ?? "",
-                        injuries: profile?.injuries ?? ""
-                    ),
+                    profile: UserProfileSnapshot(from: profile),
                     apiKey: apiKey
                 )
             }
@@ -247,6 +242,7 @@ struct ActiveWorkoutView: View {
                         plannedSet: viewModel.plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
                         isActive: viewModel.isActiveSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
                         isUpdating: viewModel.updatedSetKeys.contains("\(exerciseIndex)-\(setIndex)"),
+                        rpeMode: appState.rpeMode,
                         onLog: { weight, reps, rpe in
                             viewModel.logSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe)
                         },
@@ -522,9 +518,10 @@ final class ActiveWorkoutViewModel {
             timerService.start(seconds: planned.restSeconds)
         }
 
-        let missedTarget = planned.map { p in
+        let rpeMode = AppState.shared?.rpeMode ?? false
+        let missedTarget = rpeMode || (planned.map { p in
             weight != p.weight || reps != p.reps || (p.targetRpe != nil && rpe != p.targetRpe)
-        } ?? false
+        } ?? false)
         logger.info(
             "workout_set complete exerciseIndex=\(exerciseIndex + 1, privacy: .public) setIndex=\(setIndex + 1, privacy: .public) missedTarget=\(missedTarget, privacy: .public) timerStarted=\(planned != nil && AppState.shared?.showRestTimer == true, privacy: .public)"
         )
@@ -559,6 +556,7 @@ final class ActiveWorkoutViewModel {
         let key = apiKey
         let workout = currentWorkout
         let progress = entries
+        let rpeMode = AppState.shared?.rpeMode ?? false
         let generation = nextAdjustmentGeneration()
         logger.info(
             "rpe_adjustment request generation=\(generation, privacy: .public) completedSets=\(self.completedSets, privacy: .public)"
@@ -568,7 +566,8 @@ final class ActiveWorkoutViewModel {
             if let adjusted = await RPEAdjustmentService.adjustWorkout(
                 apiKey: key,
                 workout: workout,
-                progress: progress
+                progress: progress,
+                rpeMode: rpeMode
             ) {
                 if shouldApplyAdjustment(generation: generation) {
                     applyModifiedWorkout(adjusted)

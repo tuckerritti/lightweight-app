@@ -29,6 +29,12 @@ final class AppState {
             UserDefaults.standard.set(showRestTimer, forKey: "showRestTimer")
         }
     }
+    var rpeMode = UserDefaults.standard.bool(forKey: "rpeMode") {
+        didSet {
+            guard shouldPersistState else { return }
+            UserDefaults.standard.set(rpeMode, forKey: "rpeMode")
+        }
+    }
 
     var dailyCost: TokenCost {
         didSet {
@@ -58,6 +64,7 @@ final class AppState {
 
         defaults.removeObject(forKey: "showTokenCost")
         defaults.removeObject(forKey: "showRestTimer")
+        defaults.removeObject(forKey: "rpeMode")
         defaults.removeObject(forKey: "dailyCostInput")
         defaults.removeObject(forKey: "dailyCostOutput")
         defaults.removeObject(forKey: "dailyCostDate")
@@ -67,6 +74,7 @@ final class AppState {
         isWorkoutActive = false
         showTokenCost = false
         showRestTimer = true
+        rpeMode = false
         dailyCost = .zero
         appStateLogger.info("persistent_state reset_success")
     }

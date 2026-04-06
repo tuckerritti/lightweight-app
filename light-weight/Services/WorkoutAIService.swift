@@ -43,6 +43,7 @@ struct WorkoutAIService {
         - Never return duplicate exercise names. If an exercise matches the user's library, reuse its exact name.
         - When the user's exercise library contains a matching exercise, use its EXACT name. Prefer library exercises over inventing new ones unless the workout calls for something different.
         - For new exercises, follow the naming style of the existing library (e.g., if "Tricep Pushdown - Cable, Straight Bar" exists, a rope variation should be "Tricep Pushdown - Cable, Rope").
+        \(profile.rpeMode ? "\nIMPORTANT: RPE Mode is ON. Set \"reps\" to 0 for every set. Only suggest weight and targetRpe. The user will decide how many reps to perform at the given weight and RPE target." : "")
         """
 
         let userMessage = buildUserContext(profile: profile, recentLogs: recentLogs, exercises: exercises, healthContext: healthContext)
@@ -242,6 +243,7 @@ struct UserProfileSnapshot: Sendable {
     var schedule: String
     var equipment: String
     var injuries: String
+    var rpeMode: Bool
 }
 
 struct WorkoutLogSnapshot: Sendable {
@@ -264,7 +266,8 @@ extension UserProfileSnapshot {
             goals: profile?.goals ?? "",
             schedule: profile?.schedule ?? "",
             equipment: profile?.equipment ?? "",
-            injuries: profile?.injuries ?? ""
+            injuries: profile?.injuries ?? "",
+            rpeMode: AppState.shared?.rpeMode ?? false
         )
     }
 }
