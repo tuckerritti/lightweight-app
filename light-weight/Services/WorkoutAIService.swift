@@ -38,7 +38,7 @@ struct WorkoutAIService {
         - Use progressive overload: reference recent workout logs to pick appropriate weights
         - Vary muscle groups day-to-day so the user doesn't repeat the same muscles back-to-back
         - Rest seconds: 60-90 for hypertrophy, 120-180 for strength, 30-45 for accessories
-        - Weight in lbs. Use 0 for bodyweight exercises.
+        - Weight in lbs. Use 0 for bodyweight exercises. All weights must be in 2.5 lb increments (real plate math). No odd numbers like 186 — use 185 or 187.5.
         - You MUST set targetRpe (1-10) for every set.
         - Use "isWarmup": true for warmup sets (lighter weight, higher reps, lower RPE). Typically 1-2 warmup sets per compound exercise at 50-70% working weight.
         - Never return duplicate exercise names. If an exercise matches the user's library, reuse its exact name.
