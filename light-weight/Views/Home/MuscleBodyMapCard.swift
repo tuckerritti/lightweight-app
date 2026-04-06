@@ -124,7 +124,7 @@ private func muscleIntensities(from logs: [WorkoutLog]) -> [MuscleIntensity] {
 
         for entry in log.entries {
             for set in entry.sets {
-                guard let completedAt = set.completedAt else { continue }
+                guard let completedAt = set.completedAt, !set.isWarmup else { continue }
 
                 let hours = now.timeIntervalSince(completedAt) / 3600.0
                 let fatigue = fatigueMultiplier(hoursSinceSet: hours)
