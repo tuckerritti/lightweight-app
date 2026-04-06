@@ -68,8 +68,8 @@ enum CSVImportService {
             else if lower.contains("weight") { role = .weight }
             else if lower.contains("rep") { role = .reps }
             else if lower.contains("rpe") { role = .rpe }
-            else if lower.contains("date") { role = .date }
-            else if lower.contains("workout") { role = .workoutName }
+            else if lower.contains("date") || lower.contains("time") { role = .date }
+            else if lower.contains("workout") || lower == "title" { role = .workoutName }
             else { return .skip }
 
             guard !used.contains(role) else { return .skip }
@@ -285,7 +285,7 @@ enum CSVImportService {
         guard let string else { return nil }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        for format in ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd", "MM/dd/yyyy"] {
+        for format in ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd", "MM/dd/yyyy", "d MMM yyyy, HH:mm"] {
             formatter.dateFormat = format
             if let date = formatter.date(from: string) { return date }
         }
