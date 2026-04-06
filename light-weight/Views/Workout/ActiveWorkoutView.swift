@@ -27,21 +27,33 @@ struct ActiveWorkoutView: View {
     @State private var showChat = false
 
     private var profile: UserProfile? { profiles.first }
-    private var viewModel: ActiveWorkoutViewModel { appState.activeViewModel! }
 
     var body: some View {
+        Group {
+            if let viewModel = appState.activeViewModel {
+                activeWorkoutContent(viewModel: viewModel)
+            } else {
+                Color.clear
+                    .onAppear {
+                        dismiss()
+                    }
+            }
+        }
+    }
+
+    private func activeWorkoutContent(viewModel: ActiveWorkoutViewModel) -> some View {
         VStack(spacing: 0) {
-            timerSection
+            timerSection(viewModel: viewModel)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    headerSection
+                    headerSection(viewModel: viewModel)
 
                     ForEach(Array(viewModel.entries.enumerated()), id: \.element.id) { exerciseIndex, entry in
-                        exerciseSection(exerciseIndex: exerciseIndex, entry: entry)
+                        exerciseSection(viewModel: viewModel, exerciseIndex: exerciseIndex, entry: entry)
                     }
 
-                    cancelButton
+                    cancelButton(viewModel: viewModel)
                 }
                 .padding(.bottom, 120)
             }
@@ -69,7 +81,7 @@ struct ActiveWorkoutView: View {
                         message: "Save your workout with \(viewModel.completedSets) sets completed?",
                         confirmTitle: "Finish",
                         isDestructive: false
-                    ) { finishWorkout() }
+                    ) { finishWorkout(viewModel: viewModel) }
                 }
                 .disabled(viewModel.completedSets == 0)
             }
@@ -84,7 +96,7 @@ struct ActiveWorkoutView: View {
                     elapsedTime: viewModel.elapsedFormatted,
                     exerciseProgress: "\(viewModel.completedSets) of \(viewModel.totalSets) sets",
                     onSend: { message, history in
-                        await streamMidWorkoutChat(message, history: history)
+                        await streamMidWorkoutChat(viewModel: viewModel, message, history: history)
                     }
                 )
             }
@@ -95,8 +107,10 @@ struct ActiveWorkoutView: View {
         .sheet(isPresented: $showingDebrief, onDismiss: {
             finishedLog = nil
             debriefRecentLogs = []
-            appState.activeViewModel = nil
             dismiss()
+            DispatchQueue.main.async {
+                appState.activeViewModel = nil
+            }
         }) {
             if let log = finishedLog {
                 WorkoutDebriefView(
@@ -128,14 +142,14 @@ struct ActiveWorkoutView: View {
             }
         }
         .onDisappear {
-            viewModel.pauseTimer()
+            appState.activeViewModel?.pauseTimer()
             appState.isWorkoutActive = false
         }
     }
 
     // MARK: - Header
 
-    private var headerSection: some View {
+    private func headerSection(viewModel: ActiveWorkoutViewModel) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(viewModel.workoutName)
                 .font(.custom("SpaceGrotesk-Bold", size: 28))
@@ -165,7 +179,7 @@ struct ActiveWorkoutView: View {
     // MARK: - Timer
 
     @ViewBuilder
-    private var timerSection: some View {
+    private func timerSection(viewModel: ActiveWorkoutViewModel) -> some View {
         if appState.showRestTimer && viewModel.timerService.isRunning {
             RestTimerView(timerService: viewModel.timerService)
                 .padding(.horizontal, 20)
@@ -188,7 +202,7 @@ struct ActiveWorkoutView: View {
 
     // MARK: - Exercise Section
 
-    private func exerciseSection(exerciseIndex: Int, entry: LogEntry) -> some View {
+    private func exerciseSection(viewModel: ActiveWorkoutViewModel, exerciseIndex: Int, entry: LogEntry) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             let normalizedEntryName = ExerciseNameResolver.normalize(entry.exerciseName)
             Group {
@@ -250,7 +264,7 @@ struct ActiveWorkoutView: View {
 
     // MARK: - Cancel Button
 
-    private var cancelButton: some View {
+    private func cancelButton(viewModel: ActiveWorkoutViewModel) -> some View {
         Button {
             if viewModel.completedSets > 0 {
                 showNativeAlert(
@@ -258,9 +272,9 @@ struct ActiveWorkoutView: View {
                     message: "You've logged \(viewModel.completedSets) sets. This can't be undone.",
                     confirmTitle: "Discard",
                     isDestructive: true
-                ) { dismissWorkout() }
+                ) { dismissWorkout(viewModel: viewModel) }
             } else {
-                dismissWorkout()
+                dismissWorkout(viewModel: viewModel)
             }
         } label: {
             Text("Cancel Workout")
@@ -275,7 +289,7 @@ struct ActiveWorkoutView: View {
 
     // MARK: - Actions
 
-    private func dismissWorkout() {
+    private func dismissWorkout(viewModel: ActiveWorkoutViewModel) {
         showChat = false
         viewModel.stop()
         dismiss()
@@ -285,7 +299,7 @@ struct ActiveWorkoutView: View {
     }
 
     @MainActor
-    private func finishWorkout() {
+    private func finishWorkout(viewModel: ActiveWorkoutViewModel) {
         showChat = false
         debriefRecentLogs = recentLogs.prefix(14).map { WorkoutLogSnapshot(from: $0) }
         let log = viewModel.finish()
@@ -321,7 +335,11 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    private func streamMidWorkoutChat(_ message: String, history: [ChatMessage]) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
+    private func streamMidWorkoutChat(
+        viewModel: ActiveWorkoutViewModel,
+        _ message: String,
+        history: [ChatMessage]
+    ) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
         let currentWorkout = viewModel.currentWorkout
         let profileSnapshot = UserProfileSnapshot(from: profile)
         let generation = viewModel.nextAdjustmentGeneration()
