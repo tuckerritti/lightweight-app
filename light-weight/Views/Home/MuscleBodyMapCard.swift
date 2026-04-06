@@ -12,7 +12,7 @@ struct MuscleBodyMapCard: View {
                 .heatmap(muscleIntensities(from: logs), colorScale: volumeColorScale)
                 .frame(height: 80)
                 .allowsHitTesting(false)
-            Text("SORENESS")
+            Text("MUSCLE FATIGUE")
                 .font(.system(size: 10, weight: .semibold))
                 .tracking(0.8)
                 .foregroundStyle(Color.textTertiary)
