@@ -307,8 +307,6 @@ struct ActiveWorkoutView: View {
     private func streamMidWorkoutChat(_ message: String, history: [ChatMessage]) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
         let currentWorkout = viewModel.currentWorkout
         let profileSnapshot = UserProfileSnapshot(from: profile)
-        let generation = viewModel.nextAdjustmentGeneration()
-
         do {
             let stream = try await ChatAIService.stream(
                 apiKey: apiKey,
@@ -328,12 +326,8 @@ struct ActiveWorkoutView: View {
                             switch event {
                             case .result(let result):
                                 if let workout = result.workout {
-                                    if viewModel.shouldApplyAdjustment(generation: generation) {
-                                        viewModel.applyModifiedWorkout(workout)
-                                    } else {
-                                        logger.info("Discarding stale chat workout update")
-                                        continue
-                                    }
+                                    _ = viewModel.nextAdjustmentGeneration()
+                                    viewModel.applyModifiedWorkout(workout)
                                 }
                             case .usage, .text, .applying:
                                 break
