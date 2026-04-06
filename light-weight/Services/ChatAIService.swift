@@ -22,10 +22,6 @@ struct ChatAIService {
     private static let separatorPattern = /---\s*JSON/
         .ignoresCase()
     private static let applyingTimeout: Duration = .seconds(30)
-    #if DEBUG
-    private static let debugApplyingTimeoutTrigger = "/debug chat timeout"
-    private static let debugApplyingSuccessTrigger = "/debug chat success"
-    #endif
 
     enum StreamError: LocalizedError {
         case applyingTimedOut
@@ -131,25 +127,11 @@ struct ChatAIService {
         logger.info(
             "chat_stream start mode=\(mode, privacy: .public) history=\(history.count, privacy: .public) currentWorkout=\(currentWorkout != nil, privacy: .public) activeWorkout=\(isActiveWorkout, privacy: .public)"
         )
-        let tokenStream: AsyncThrowingStream<StreamChunk, Error>
-        #if DEBUG
-        if let debugStream = debugTokenStream(for: message) {
-            logger.info("chat_stream debug_fixture trigger=\(message, privacy: .public)")
-            tokenStream = debugStream
-        } else {
-            tokenStream = try await api.stream(
-                operation: "chat_stream",
-                systemPrompt: systemPrompt,
-                messages: messages
-            )
-        }
-        #else
-        tokenStream = try await api.stream(
+        let tokenStream = try await api.stream(
             operation: "chat_stream",
             systemPrompt: systemPrompt,
             messages: messages
         )
-        #endif
 
         return AsyncThrowingStream { continuation in
             let task = Task {
@@ -248,65 +230,6 @@ struct ChatAIService {
         }
     }
 
-    #if DEBUG
-    private static func debugTokenStream(for message: String) -> AsyncThrowingStream<StreamChunk, Error>? {
-        let normalized = message.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        switch normalized {
-        case debugApplyingTimeoutTrigger:
-            return AsyncThrowingStream { continuation in
-                let task = Task {
-                    continuation.yield(.text("Testing the apply timeout path.\n"))
-                    continuation.yield(.text("---JSON\n"))
-                    try? await Task.sleep(for: .seconds(31))
-                    continuation.finish()
-                }
-                continuation.onTermination = { _ in task.cancel() }
-            }
-        case debugApplyingSuccessTrigger:
-            let response = """
-            Testing the successful apply path.
-            ---JSON
-            {
-              "name": "Debug Hook Workout",
-              "insight": "Generated locally for simulator testing.",
-              "exercises": [
-                {
-                  "name": "Bench Press",
-                  "muscleGroup": "Chest",
-                  "sets": [
-                    { "reps": 8, "weight": 135, "restSeconds": 90, "targetRpe": 8 },
-                    { "reps": 8, "weight": 135, "restSeconds": 90, "targetRpe": 8 }
-                  ]
-                },
-                {
-                  "name": "Barbell Row",
-                  "muscleGroup": "Back",
-                  "sets": [
-                    { "reps": 10, "weight": 95, "restSeconds": 90, "targetRpe": 8 },
-                    { "reps": 10, "weight": 95, "restSeconds": 90, "targetRpe": 8 }
-                  ]
-                }
-              ]
-            }
-            """
-            return AsyncThrowingStream { continuation in
-                let task = Task {
-                    for chunk in response.debugChunks {
-                        guard !Task.isCancelled else { return }
-                        continuation.yield(.text(chunk))
-                        try? await Task.sleep(for: .milliseconds(250))
-                    }
-                    continuation.finish()
-                }
-                continuation.onTermination = { _ in task.cancel() }
-            }
-        default:
-            return nil
-        }
-    }
-    #endif
-
     private static func parseResult(from response: String) throws -> ChatResult {
         let explanation: String
         let jsonString: String
@@ -347,15 +270,3 @@ struct ChatAIService {
         }
     }
 }
-
-#if DEBUG
-private extension String {
-    var debugChunks: [String] {
-        stride(from: 0, to: count, by: 24).map { start in
-            let startIndex = index(self.startIndex, offsetBy: start)
-            let endIndex = index(startIndex, offsetBy: 24, limitedBy: self.endIndex) ?? self.endIndex
-            return String(self[startIndex..<endIndex])
-        }
-    }
-}
-#endif
