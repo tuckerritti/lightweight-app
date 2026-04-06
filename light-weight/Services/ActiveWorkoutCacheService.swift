@@ -8,6 +8,8 @@ struct ActiveWorkoutState: Codable, Hashable {
     var workoutExercises: [WorkoutExercise]
     var entries: [LogEntry]
     var startedAt: Date
+    var restTimerFireDate: Date?
+    var restTimerTotalSeconds: Int?
 }
 
 enum ActiveWorkoutCacheService {

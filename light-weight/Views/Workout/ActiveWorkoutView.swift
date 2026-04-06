@@ -406,6 +406,8 @@ final class ActiveWorkoutViewModel {
     private var elapsedTimer: Timer?
     private var hasStarted = false
     private var isRestored = false
+    private var restoredTimerFireDate: Date?
+    private var restoredTimerTotalSeconds: Int?
 
     var elapsedSeconds: Int = 0
 
@@ -454,6 +456,8 @@ final class ActiveWorkoutViewModel {
         self.entries = state.entries
         self.startedAt = state.startedAt
         self.isRestored = true
+        self.restoredTimerFireDate = state.restTimerFireDate
+        self.restoredTimerTotalSeconds = state.restTimerTotalSeconds
     }
 
     func toState() -> ActiveWorkoutState {
@@ -461,7 +465,9 @@ final class ActiveWorkoutViewModel {
             workoutName: workoutName,
             workoutExercises: workoutExercises,
             entries: entries,
-            startedAt: startedAt
+            startedAt: startedAt,
+            restTimerFireDate: timerService.isRunning ? timerService.fireDate : nil,
+            restTimerTotalSeconds: timerService.isRunning ? timerService.totalSeconds : nil
         )
     }
 
@@ -476,6 +482,13 @@ final class ActiveWorkoutViewModel {
             MainActor.assumeIsolated {
                 self.elapsedSeconds = Int(Date().timeIntervalSince(self.startedAt))
             }
+        }
+
+        if let fireDate = restoredTimerFireDate,
+           let total = restoredTimerTotalSeconds {
+            timerService.resume(fireDate: fireDate, totalSeconds: total)
+            restoredTimerFireDate = nil
+            restoredTimerTotalSeconds = nil
         }
     }
 

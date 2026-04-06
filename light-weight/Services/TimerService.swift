@@ -15,7 +15,7 @@ final class TimerService {
     let soundService = RestSoundService()
 
     private var timer: Timer?
-    private var fireDate: Date?
+    private(set) var fireDate: Date?
     private var cleanupWork: DispatchWorkItem?
 
     func start(seconds: Int) {
@@ -65,6 +65,29 @@ final class TimerService {
         scheduleNotification(seconds: newRemaining)
 
         logger.info("Timer resynced: \(newTotalSeconds)s total, \(newRemaining)s remaining")
+    }
+
+    func resume(fireDate: Date, totalSeconds: Int) {
+        let remaining = Int(ceil(fireDate.timeIntervalSince(.now)))
+        guard remaining > 0 else { return }
+        stop()
+        self.totalSeconds = totalSeconds
+        self.remainingSeconds = remaining
+        self.isRunning = true
+        self.fireDate = fireDate
+        scheduleNotification(seconds: remaining)
+        soundService.startBackgroundAudio()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let left = Int(ceil((self.fireDate ?? .now).timeIntervalSince(.now)))
+                if left <= 0 {
+                    self.timerExpired()
+                } else {
+                    self.remainingSeconds = left
+                }
+            }
+        }
     }
 
     /// User tapped skip — stop everything immediately.
