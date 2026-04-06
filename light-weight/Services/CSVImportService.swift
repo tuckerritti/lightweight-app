@@ -1,6 +1,9 @@
 import Foundation
 import MuscleMap
+import os
 import SwiftData
+
+private let logger = Logger(subsystem: "com.light-weight", category: "CSVImportService")
 
 private extension Array {
     func chunked(into size: Int) -> [[Element]] {
@@ -31,10 +34,18 @@ enum CSVImportService {
 
     static func parse(_ text: String) -> (headers: [String], rows: [[String]]) {
         let lines = text.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-        guard let headerLine = lines.first else { return ([], []) }
+        guard let headerLine = lines.first else {
+            logger.info("csv_import parse_empty")
+            return ([], [])
+        }
 
         let headers = parseCSVLine(headerLine)
         let rows = lines.dropFirst().map { parseCSVLine($0) }
+        if rows.isEmpty {
+            logger.info("csv_import parse_empty")
+        } else {
+            logger.info("csv_import parse_success headers=\(headers.count, privacy: .public) rows=\(rows.count, privacy: .public)")
+        }
         return (headers, rows)
     }
 
@@ -61,7 +72,7 @@ enum CSVImportService {
 
     static func suggestMapping(headers: [String]) -> [CSVColumnRole] {
         var used: Set<CSVColumnRole> = []
-        return headers.map { header in
+        let mapping: [CSVColumnRole] = headers.map { header in
             let lower = header.lowercased()
             let role: CSVColumnRole
             if lower.contains("exercise") { role = .exerciseName }
@@ -70,12 +81,17 @@ enum CSVImportService {
             else if lower.contains("rpe") { role = .rpe }
             else if lower.contains("date") || lower.contains("time") { role = .date }
             else if lower.contains("workout") || lower == "title" { role = .workoutName }
-            else { return .skip }
+            else { return CSVColumnRole.skip }
 
-            guard !used.contains(role) else { return .skip }
+            guard !used.contains(role) else { return CSVColumnRole.skip }
             used.insert(role)
             return role
         }
+        let mappedCount = mapping.filter { $0 != CSVColumnRole.skip }.count
+        logger.info(
+            "csv_import mapping_suggested headers=\(headers.count, privacy: .public) mapped=\(mappedCount, privacy: .public) hasExerciseName=\(mapping.contains(.exerciseName), privacy: .public) hasDate=\(mapping.contains(.date), privacy: .public) hasWorkoutName=\(mapping.contains(.workoutName), privacy: .public)"
+        )
+        return mapping
     }
 
     // MARK: - Import
@@ -91,13 +107,21 @@ enum CSVImportService {
             existingExercises.map { ($0.name.lowercased().trimmingCharacters(in: .whitespaces), (muscleGroup: $0.muscleGroup, targetMuscles: $0.targetMuscles)) },
             uniquingKeysWith: { first, _ in first }
         )
+        logger.info(
+            "csv_import start rows=\(rows.count, privacy: .public) mappedColumns=\(mapping.filter { $0 != .skip }.count, privacy: .public) existingExercises=\(existingExercises.count, privacy: .public)"
+        )
 
         // Group rows into workout sessions by (date string, workout name)
         var sessions: [(key: String, rows: [[String]])] = []
         var sessionMap: [String: Int] = [:]
+        var invalidDateRowCount = 0
+        var skippedRestTimerRowCount = 0
 
         for row in rows {
-            guard let dateStr = value(row, index[.date]), parseDate(dateStr) != nil else { continue }
+            guard let dateStr = value(row, index[.date]), parseDate(dateStr) != nil else {
+                invalidDateRowCount += 1
+                continue
+            }
             let name = value(row, index[.workoutName]) ?? "Imported Workout"
             let key = "\(dateStr)|\(name)"
 
@@ -123,7 +147,10 @@ enum CSVImportService {
 
             for row in session.rows {
                 // Strong app CSV exports include "Rest Timer" in the Set Order column — skip them
-                if row.contains(where: { $0.trimmingCharacters(in: .whitespaces) == "Rest Timer" }) { continue }
+                if row.contains(where: { $0.trimmingCharacters(in: .whitespaces) == "Rest Timer" }) {
+                    skippedRestTimerRowCount += 1
+                    continue
+                }
 
                 let exerciseName = value(row, index[.exerciseName]) ?? "Unknown Exercise"
 
@@ -164,13 +191,19 @@ enum CSVImportService {
 
         // Persist new exercises to library
         var knownNames = Set(existingExercises.map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+        var newExerciseCount = 0
         for (name, muscleGroup) in allExerciseNames {
             let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
             let normalizedName = trimmedName.lowercased()
             guard !normalizedName.isEmpty, !muscleGroup.isEmpty else { continue }
             guard knownNames.insert(normalizedName).inserted else { continue }
             modelContext.insert(Exercise(name: trimmedName, muscleGroup: muscleGroup))
+            newExerciseCount += 1
         }
+
+        logger.info(
+            "csv_import success workouts=\(sessions.count, privacy: .public) newExercises=\(newExerciseCount, privacy: .public) unclassifiedExercises=\(unclassifiedNames.count, privacy: .public) invalidDateRows=\(invalidDateRowCount, privacy: .public) skippedRestTimerRows=\(skippedRestTimerRowCount, privacy: .public)"
+        )
 
         return CSVImportResult(
             workoutCount: sessions.count,
@@ -202,30 +235,53 @@ enum CSVImportService {
         """
 
         let api = ClaudeAPIService(apiKey: apiKey)
-        var classificationMap: [String: ClassifiedExercise] = [:]
 
         // Batch into groups of 15 to avoid exceeding the token limit
         let batches = names.chunked(into: 15)
-        for (i, batch) in batches.enumerated() {
-            let nameList = batch.map { "- \($0)" }.joined(separator: "\n")
-            let response = try await api.send(
-                operation: "classify-exercises",
-                systemPrompt: systemPrompt,
-                userMessage: "Classify these exercises:\n\(nameList)"
-            )
+        logger.info(
+            "csv_import_classification start names=\(names.count, privacy: .public) batches=\(batches.count, privacy: .public) exercises=\(exercises.count, privacy: .public) logs=\(workoutLogs.count, privacy: .public)"
+        )
 
-            let jsonString = JSONExtractor.extractObject(from: response)
-            guard let data = jsonString.data(using: .utf8) else { continue }
-            let decoded = try JSONDecoder().decode(ClassificationResponse.self, from: data)
+        // Fire all batches in parallel
+        let classificationMap: [String: ClassifiedExercise] = try await withThrowingTaskGroup(
+            of: [ClassifiedExercise].self
+        ) { group in
+            for batch in batches {
+                group.addTask {
+                    let nameList = batch.map { "- \($0)" }.joined(separator: "\n")
+                    let response = try await api.send(
+                        operation: "classify-exercises",
+                        systemPrompt: systemPrompt,
+                        userMessage: "Classify these exercises:\n\(nameList)"
+                    )
 
-            for exercise in decoded.exercises {
-                classificationMap[exercise.name.lowercased().trimmingCharacters(in: .whitespaces)] = exercise
+                    let jsonString = JSONExtractor.extractObject(from: response)
+                    guard let data = jsonString.data(using: .utf8) else { return [] }
+                    let decoded = try JSONDecoder().decode(ClassificationResponse.self, from: data)
+                    return decoded.exercises
+                }
             }
 
-            await onBatchComplete?(i + 1)
+            var result: [String: ClassifiedExercise] = [:]
+            var completed = 0
+            for try await classified in group {
+                for exercise in classified {
+                    result[exercise.name.lowercased().trimmingCharacters(in: .whitespaces)] = exercise
+                }
+                completed += 1
+                logger.info(
+                    "csv_import_classification batch_success batch=\(completed, privacy: .public)/\(batches.count, privacy: .public) classified=\(classified.count, privacy: .public)"
+                )
+                let batchNum = completed
+                await MainActor.run {
+                    onBatchComplete?(batchNum)
+                }
+            }
+            return result
         }
 
         // Update Exercise library entries
+        var updatedExerciseCount = 0
         for exercise in exercises {
             let key = exercise.name.lowercased().trimmingCharacters(in: .whitespaces)
             guard let classification = classificationMap[key] else { continue }
@@ -235,9 +291,11 @@ enum CSVImportService {
             if let instructions = classification.instructions {
                 exercise.instructions = instructions
             }
+            updatedExerciseCount += 1
         }
 
         // Backfill WorkoutLog entries
+        var backfilledLogCount = 0
         for log in workoutLogs {
             var entries = log.entries
             var modified = false
@@ -250,8 +308,13 @@ enum CSVImportService {
             }
             if modified {
                 log.entries = entries
+                backfilledLogCount += 1
             }
         }
+
+        logger.info(
+            "csv_import_classification success classified=\(classificationMap.count, privacy: .public) updatedExercises=\(updatedExerciseCount, privacy: .public) backfilledLogs=\(backfilledLogCount, privacy: .public)"
+        )
     }
 
     private struct ClassificationResponse: Decodable {

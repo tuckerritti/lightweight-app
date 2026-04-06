@@ -551,6 +551,8 @@ final class ActiveWorkoutViewModel {
 
     func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
         let planned = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
+        let isWarmup = entries[exerciseIndex].sets[setIndex].isWarmup
+        let fractionalWeight = weight.rounded() != weight
 
         entries[exerciseIndex].sets[setIndex].weight = weight
         entries[exerciseIndex].sets[setIndex].reps = reps
@@ -571,7 +573,7 @@ final class ActiveWorkoutViewModel {
             weight != p.weight || reps != p.reps || (p.targetRpe != nil && rpe != p.targetRpe)
         } ?? false
         logger.info(
-            "workout_set complete exerciseIndex=\(exerciseIndex + 1, privacy: .public) setIndex=\(setIndex + 1, privacy: .public) missedTarget=\(missedTarget, privacy: .public) timerStarted=\(planned != nil && AppState.shared?.showRestTimer == true, privacy: .public)"
+            "workout_set complete exerciseIndex=\(exerciseIndex + 1, privacy: .public) setIndex=\(setIndex + 1, privacy: .public) missedTarget=\(missedTarget, privacy: .public) timerStarted=\(planned != nil && AppState.shared?.showRestTimer == true, privacy: .public) isWarmup=\(isWarmup, privacy: .public) fractionalWeight=\(fractionalWeight, privacy: .public)"
         )
 
         if !apiKey.isEmpty && missedTarget {
@@ -580,6 +582,8 @@ final class ActiveWorkoutViewModel {
     }
 
     func editSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
+        let isWarmup = entries[exerciseIndex].sets[setIndex].isWarmup
+        let fractionalWeight = weight.rounded() != weight
         entries[exerciseIndex].sets[setIndex].weight = weight
         entries[exerciseIndex].sets[setIndex].reps = reps
         entries[exerciseIndex].sets[setIndex].rpe = rpe
@@ -589,6 +593,10 @@ final class ActiveWorkoutViewModel {
             workoutExercises[exerciseIndex].sets[setIndex].weight = weight
             workoutExercises[exerciseIndex].sets[setIndex].reps = reps
         }
+
+        logger.info(
+            "workout_set edit exerciseIndex=\(exerciseIndex + 1, privacy: .public) setIndex=\(setIndex + 1, privacy: .public) isWarmup=\(isWarmup, privacy: .public) fractionalWeight=\(fractionalWeight, privacy: .public)"
+        )
     }
 
     func nextAdjustmentGeneration() -> Int {
