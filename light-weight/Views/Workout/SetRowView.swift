@@ -17,6 +17,7 @@ struct SetRowView: View {
     @State private var sweepPosition: CGFloat = 1.3
     @State private var contentOpacity: Double = 1.0
     @State private var isEditing = false
+    @State private var editSaveCount = 0
 
     private var isCompleted: Bool { logSet.completedAt != nil }
     private var canLog: Bool {
@@ -81,6 +82,10 @@ struct SetRowView: View {
                 .allowsHitTesting(false)
         }
         .opacity(contentOpacity)
+        .sensoryFeedback(.success, trigger: logSet.completedAt) { oldValue, newValue in
+            oldValue == nil && newValue != nil
+        }
+        .sensoryFeedback(.success, trigger: editSaveCount)
         .onChange(of: isUpdating) {
             guard isUpdating else { return }
             sweepPosition = -0.3
@@ -144,6 +149,7 @@ struct SetRowView: View {
                   let rpe = Int(rpeText) else { return }
             onEdit?(weight, reps, rpe)
             isEditing = false
+            editSaveCount += 1
         } label: {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 20))
