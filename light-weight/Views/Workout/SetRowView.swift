@@ -16,18 +16,19 @@ struct SetRowView: View {
     @State private var sweepPosition: CGFloat = 1.3
     @State private var contentOpacity: Double = 1.0
     @State private var isEditing = false
+    @State private var editSaveCount = 0
 
     private var isCompleted: Bool { logSet.completedAt != nil }
     private var canLog: Bool {
         guard let rpe = Int(rpeText) else { return false }
-        return Double(weightText) != nil && Int(repsText) != nil && (1...10).contains(rpe)
+        return parseWeight(weightText) != nil && Int(repsText) != nil && (1...10).contains(rpe)
     }
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("\(setNumber)")
+            Text(logSet.isWarmup ? "W" : "\(setNumber)")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isCompleted ? Color.accent : .textSecondary)
+                .foregroundStyle(logSet.isWarmup ? .textTertiary : (isCompleted ? Color.accent : .textSecondary))
                 .frame(width: 40, alignment: .leading)
 
             if isCompleted && isEditing {
@@ -80,6 +81,10 @@ struct SetRowView: View {
                 .allowsHitTesting(false)
         }
         .opacity(contentOpacity)
+        .sensoryFeedback(.success, trigger: logSet.completedAt) { oldValue, newValue in
+            oldValue == nil && newValue != nil
+        }
+        .sensoryFeedback(.success, trigger: editSaveCount)
         .onChange(of: isUpdating) {
             guard isUpdating else { return }
             sweepPosition = -0.3
@@ -138,11 +143,12 @@ struct SetRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
         Button {
-            guard let weight = Double(weightText),
+            guard let weight = parseWeight(weightText),
                   let reps = Int(repsText),
                   let rpe = Int(rpeText) else { return }
             onEdit?(weight, reps, rpe)
             isEditing = false
+            editSaveCount += 1
         } label: {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 20))
@@ -176,7 +182,7 @@ struct SetRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
         Button {
-            guard let weight = Double(weightText),
+            guard let weight = parseWeight(weightText),
                   let reps = Int(repsText),
                   let rpe = Int(rpeText) else { return }
             onLog(weight, reps, rpe)
@@ -194,7 +200,7 @@ struct SetRowView: View {
 
     @ViewBuilder
     private var futureRow: some View {
-        Text(plannedSet.map { "\(Int($0.weight))" } ?? "—")
+        Text(plannedSet.map { $0.weight.formattedWeight } ?? "—")
             .font(.system(size: 14))
             .foregroundStyle(Color.textTertiary)
             .frame(maxWidth: .infinity)
@@ -213,14 +219,14 @@ struct SetRowView: View {
     }
 
     private func syncDisplayedValues() {
-        weightText = logSet.weight > 0 ? "\(Int(logSet.weight))" : ""
+        weightText = logSet.weight > 0 ? logSet.weight.formattedWeight : ""
         repsText = "\(logSet.reps)"
         rpeText = logSet.rpe > 0 ? String(logSet.rpe) : ""
     }
 
     private func syncPendingValues() {
         guard !isCompleted else { return }
-        weightText = logSet.weight > 0 ? "\(Int(logSet.weight))" : ""
+        weightText = logSet.weight > 0 ? logSet.weight.formattedWeight : ""
         repsText = "\(logSet.reps)"
     }
 }

@@ -209,6 +209,7 @@ enum CSVImportService {
         for (i, batch) in batches.enumerated() {
             let nameList = batch.map { "- \($0)" }.joined(separator: "\n")
             let response = try await api.send(
+                operation: "classify-exercises",
                 systemPrompt: systemPrompt,
                 userMessage: "Classify these exercises:\n\(nameList)"
             )
