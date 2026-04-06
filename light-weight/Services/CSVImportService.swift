@@ -185,7 +185,8 @@ enum CSVImportService {
         apiKey: String,
         exercises: [Exercise],
         workoutLogs: [WorkoutLog],
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        onBatchComplete: (@MainActor (Int) -> Void)? = nil
     ) async throws {
         let systemPrompt = """
         You are an exercise classification assistant. Given a list of exercise names, respond with ONLY valid JSON matching this schema:
@@ -204,7 +205,8 @@ enum CSVImportService {
         var classificationMap: [String: ClassifiedExercise] = [:]
 
         // Batch into groups of 15 to avoid exceeding the token limit
-        for batch in names.chunked(into: 15) {
+        let batches = names.chunked(into: 15)
+        for (i, batch) in batches.enumerated() {
             let nameList = batch.map { "- \($0)" }.joined(separator: "\n")
             let response = try await api.send(
                 systemPrompt: systemPrompt,
@@ -218,6 +220,8 @@ enum CSVImportService {
             for exercise in decoded.exercises {
                 classificationMap[exercise.name.lowercased().trimmingCharacters(in: .whitespaces)] = exercise
             }
+
+            await onBatchComplete?(i + 1)
         }
 
         // Update Exercise library entries

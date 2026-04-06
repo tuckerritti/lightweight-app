@@ -16,6 +16,7 @@ struct CSVImportView: View {
     @State private var showFilePicker = true
     @State private var importedCount = 0
     @State private var classifiedCount = 0
+    @State private var batchesCompleted = 0
     @State private var step: ImportStep = .mapColumns
     @State private var errorMessage: String?
 
@@ -133,14 +134,19 @@ struct CSVImportView: View {
         }
     }
 
+    private var totalBatches: Int {
+        (classifiedCount + 14) / 15
+    }
+
     private var classifyingView: some View {
         VStack(spacing: 16) {
             Spacer()
-            ProgressView()
-                .controlSize(.large)
             Text("Classifying \(classifiedCount) exercises...")
                 .font(.custom("SpaceGrotesk-Bold", size: 20))
                 .foregroundStyle(Color.textPrimary)
+            ProgressView(value: Double(batchesCompleted), total: Double(totalBatches))
+                .tint(Color.accent)
+                .padding(.horizontal, 40)
             Text("Using AI to identify muscle groups")
                 .font(.system(size: 14))
                 .foregroundStyle(Color.textSecondary)
@@ -247,7 +253,10 @@ struct CSVImportView: View {
                         apiKey: apiKey,
                         exercises: currentExercises,
                         workoutLogs: currentLogs,
-                        modelContext: modelContext
+                        modelContext: modelContext,
+                        onBatchComplete: { completed in
+                            batchesCompleted = completed
+                        }
                     )
                 } catch {
                     classifiedCount = 0
