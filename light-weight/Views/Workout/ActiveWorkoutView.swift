@@ -323,6 +323,12 @@ struct ActiveWorkoutView: View {
     private func streamMidWorkoutChat(_ message: String, history: [ChatMessage]) async -> AsyncThrowingStream<ChatStreamEvent, Error>? {
         let currentWorkout = viewModel.currentWorkout
         let profileSnapshot = UserProfileSnapshot(from: profile)
+        // Claim the generation before awaiting the stream because the request
+        // snapshots the workout immediately and should invalidate older AI updates.
+        let generation = viewModel.nextAdjustmentGeneration()
+        logger.info(
+            "mid_workout_chat start history=\(history.count, privacy: .public) generation=\(generation, privacy: .public) completedSets=\(viewModel.completedSets, privacy: .public)"
+        )
         do {
             let stream = try await ChatAIService.stream(
                 apiKey: apiKey,
@@ -342,16 +348,26 @@ struct ActiveWorkoutView: View {
                             switch event {
                             case .result(let result):
                                 if let workout = result.workout {
-                                    let generation = viewModel.nextAdjustmentGeneration()
-                                    viewModel.applyModifiedWorkout(workout)
-                                    logger.info(
-                                        "mid_workout_chat apply_success generation=\(generation, privacy: .public) exercises=\(workout.exercises.count, privacy: .public) totalSets=\(workout.totalSets, privacy: .public)"
-                                    )
+                                    if viewModel.shouldApplyAdjustment(generation: generation) {
+                                        viewModel.applyModifiedWorkout(workout)
+                                        logger.info(
+                                            "mid_workout_chat apply_success generation=\(generation, privacy: .public) exercises=\(workout.exercises.count, privacy: .public) totalSets=\(workout.totalSets, privacy: .public)"
+                                        )
+                                        continuation.yield(event)
+                                    } else {
+                                        logger.info("mid_workout_chat discard_stale generation=\(generation, privacy: .public)")
+                                        continuation.yield(.result(ChatResult(
+                                            workout: nil,
+                                            explanation: "The workout changed while I was responding, so I didn't apply these suggestions. Ask again if you still want to update the plan."
+                                        )))
+                                    }
+                                } else {
+                                    logger.info("mid_workout_chat no_workout_change generation=\(generation, privacy: .public)")
+                                    continuation.yield(event)
                                 }
                             case .usage, .text, .applying:
-                                break
+                                continuation.yield(event)
                             }
-                            continuation.yield(event)
                         }
                         continuation.finish()
                     } catch {
