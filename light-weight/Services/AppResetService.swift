@@ -10,6 +10,7 @@ enum AppResetService {
         try modelContext.save()
 
         WorkoutCacheService.clearAll()
+        ActiveWorkoutCacheService.clear()
         RestSound.resetSelection()
         appState.resetPersistentState()
         ICloudBackupService.deleteBackup()
