@@ -65,6 +65,9 @@ enum ICloudBackupService {
         documentsURL?.appending(path: backupFileName)
     }
 
+    private static var lastBackupDate: Date?
+    private static let minimumBackupInterval: TimeInterval = 300
+
     // MARK: - Backup
 
     static func backupAll(modelContext: ModelContext) {
@@ -75,6 +78,11 @@ enum ICloudBackupService {
 
         guard let documentsURL else {
             logger.info("icloud_backup skip reason=unavailable")
+            return
+        }
+
+        if let last = lastBackupDate, Date().timeIntervalSince(last) < minimumBackupInterval {
+            logger.info("icloud_backup skip reason=debounced")
             return
         }
 
@@ -126,7 +134,7 @@ enum ICloudBackupService {
 
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.outputFormatting = .sortedKeys
             let data = try encoder.encode(backup)
             guard let backupFileURL else {
                 logger.info("icloud_backup skip reason=unavailable")
@@ -134,6 +142,7 @@ enum ICloudBackupService {
             }
             try data.write(to: backupFileURL, options: .atomic)
 
+            lastBackupDate = .now
             logger.info(
                 "icloud_backup success exercises=\(exercises.count, privacy: .public) workoutLogs=\(logs.count, privacy: .public) profiles=\(profiles.count, privacy: .public)"
             )
