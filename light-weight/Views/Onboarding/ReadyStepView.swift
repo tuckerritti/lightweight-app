@@ -5,7 +5,6 @@ struct ReadyStepView: View {
     let experienceLevel: String
     let trainingDays: Set<Int>
     let selectedSplit: String
-    let selectedSounds: Set<RestSound>
     let apiKeyPresent: Bool
     var onFinish: () -> Void
     @State private var startTapCount = 0
@@ -45,8 +44,6 @@ struct ReadyStepView: View {
                 summaryRow(label: "Schedule", value: "\(trainingDays.count) days / week")
                 divider
                 summaryRow(label: "Split", value: selectedSplit)
-                divider
-                summaryRow(label: "Sounds", value: soundsText)
                 divider
                 HStack {
                     Text("AI")
@@ -89,13 +86,6 @@ struct ReadyStepView: View {
             .padding(.bottom, 20)
         }
         .sensoryFeedback(.impact, trigger: startTapCount)
-    }
-
-    private var soundsText: String {
-        if selectedSounds.count == RestSound.allCases.count {
-            return "All"
-        }
-        return selectedSounds.map(\.displayName).sorted().joined(separator: ", ")
     }
 
     private var goalsText: String {

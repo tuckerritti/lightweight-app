@@ -44,7 +44,6 @@ struct OnboardingView: View {
                     experienceLevel: experienceLevel,
                     trainingDays: trainingDays,
                     selectedSplit: selectedSplit,
-                    selectedSounds: selectedSounds,
                     apiKeyPresent: !apiKey.isEmpty,
                     onFinish: completeOnboarding
                 )
