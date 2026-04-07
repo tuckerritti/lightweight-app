@@ -19,6 +19,7 @@ struct CSVImportView: View {
     @State private var batchesCompleted = 0
     @State private var step: ImportStep = .mapColumns
     @State private var errorMessage: String?
+    @State private var showConfirmation = false
 
     private enum ImportStep { case mapColumns, classifying, done }
 
@@ -37,6 +38,12 @@ struct CSVImportView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(step == .classifying)
         .interactiveDismissDisabled(step == .classifying)
+        .alert("Replace All Data?", isPresented: $showConfirmation) {
+            Button("Import", role: .destructive) { doImport() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will delete all existing workouts and exercises. This cannot be undone.")
+        }
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.commaSeparatedText]) { result in
             handleFile(result)
         }
@@ -117,7 +124,7 @@ struct CSVImportView: View {
                         .foregroundStyle(Color.textSecondary)
 
                     Button {
-                        doImport()
+                        showConfirmation = true
                     } label: {
                         Text("Import")
                             .font(.system(size: 17, weight: .semibold))
