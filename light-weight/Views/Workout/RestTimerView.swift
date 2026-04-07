@@ -1,4 +1,7 @@
 import SwiftUI
+import os
+
+private let logger = Logger(subsystem: "com.light-weight", category: "RestTimerView")
 
 struct RestTimerView: View {
     let timerService: TimerService
@@ -27,6 +30,9 @@ struct RestTimerView: View {
             if timerService.isRunning {
                 Button {
                     skipCount += 1
+                    logger.info(
+                        "rest_timer skip_tapped remainingSeconds=\(timerService.remainingSeconds, privacy: .public) totalSeconds=\(timerService.totalSeconds, privacy: .public)"
+                    )
                     timerService.stop()
                 } label: {
                     Text("Skip")
