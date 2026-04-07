@@ -82,7 +82,7 @@ struct HomeView: View {
                     switch destination {
                     case .library: ExerciseLibraryView()
                     case .history: HistoryListView()
-                    case .settings: SettingsView()
+                    case .settings: SettingsView(onReturnHome: returnToHome)
                     case .activeWorkout: ActiveWorkoutView()
                     }
                 }
@@ -100,6 +100,11 @@ struct HomeView: View {
                 )
             }
         }
+    }
+
+    private func returnToHome() {
+        todayWorkout = nil
+        navigationPath = NavigationPath()
     }
 
     // MARK: - AI Generation
