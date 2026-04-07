@@ -8,12 +8,6 @@ private func debugActiveWorkoutLog(_ message: String) {
     DebugLogStore.record(message, category: "ActiveWorkout")
 }
 
-#if DEBUG
-private let stubAutoRPEFailure = true
-#else
-private let stubAutoRPEFailure = false
-#endif
-
 struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -514,16 +508,13 @@ final class ActiveWorkoutViewModel {
             weight != p.weight || reps != p.reps || (p.targetRpe != nil && rpe != p.targetRpe)
         } ?? false
 
-        let shouldRequestAdjustment = missedTarget && (!apiKey.isEmpty || stubAutoRPEFailure)
-
         debugActiveWorkoutLog(
             "Logged set exercise=\(exerciseIndex) set=\(setIndex) " +
             "weight=\(weight) reps=\(reps) rpe=\(rpe) " +
-            "missedTarget=\(missedTarget) hasAPIKey=\(!self.apiKey.isEmpty) " +
-            "stubFailure=\(stubAutoRPEFailure) shouldRequestAdjustment=\(shouldRequestAdjustment)"
+            "missedTarget=\(missedTarget) hasAPIKey=\(!self.apiKey.isEmpty)"
         )
 
-        if shouldRequestAdjustment {
+        if !apiKey.isEmpty && missedTarget {
             requestRPEAdjustment()
         }
     }
@@ -562,13 +553,6 @@ final class ActiveWorkoutViewModel {
             defer {
                 isAdjusting = false
                 debugActiveWorkoutLog("Ending auto-RPE adjustment generation=\(generation)")
-            }
-
-            if stubAutoRPEFailure {
-                debugActiveWorkoutLog("Stubbing auto-RPE failure generation=\(generation)")
-                try? await Task.sleep(for: .milliseconds(600))
-                triggerAdjustmentFailure(generation: generation)
-                return
             }
 
             if let adjusted = await RPEAdjustmentService.adjustWorkout(
