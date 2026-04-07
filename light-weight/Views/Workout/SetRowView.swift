@@ -35,6 +35,33 @@ struct SetRowView: View {
     }
 
     var body: some View {
+        rowWithOverlays
+            .sensoryFeedback(.success, trigger: logSet.completedAt) { oldValue, newValue in
+                oldValue == nil && newValue != nil
+            }
+            .sensoryFeedback(.success, trigger: editSaveCount)
+            .onChange(of: isUpdating) { handleUpdatingChanged() }
+            .onChange(of: adjustmentFailed) { handleAdjustmentFailedChanged() }
+            .onChange(of: isAdjusting) { handleAdjustingChanged() }
+            .onDisappear { stopSweep() }
+    }
+
+    private var rowWithOverlays: some View {
+        rowWithDataHandlers
+            .opacity((isAdjusting && !isCompleted ? 0.5 : 1.0) * contentOpacity)
+            .animation(.easeOut(duration: 0.2), value: isAdjusting)
+            .overlay { adjustingSweepOverlay }
+            .overlay { updatingSweepOverlay }
+            .background {
+                Rectangle()
+                    .fill(Color.red)
+                    .opacity(pulseOpacity)
+            }
+    }
+
+    // MARK: - Row Content
+
+    private var rowWithDataHandlers: some View {
         HStack(spacing: 8) {
             Text(logSet.isWarmup ? "W" : "\(setNumber)")
                 .font(.system(size: 14, weight: .semibold))
@@ -67,111 +94,12 @@ struct SetRowView: View {
                 startSweep()
             }
         }
-        .onChange(of: logSet.weight) {
-            syncPendingValues()
-        }
-        .onChange(of: logSet.reps) {
-            syncPendingValues()
-        }
+        .onChange(of: logSet.weight) { syncPendingValues() }
+        .onChange(of: logSet.reps) { syncPendingValues() }
         .onChange(of: logSet.rpe) {
             if isCompleted {
                 rpeText = logSet.rpe > 0 ? String(logSet.rpe) : ""
             }
-        }
-        .opacity((isAdjusting && !isCompleted ? 0.5 : 1.0) * contentOpacity)
-        .animation(.easeOut(duration: 0.2), value: isAdjusting)
-        .overlay {
-            if !isCompleted {
-                GeometryReader { proxy in
-                    let bandWidth: CGFloat = 72
-                    let travel = proxy.size.width + (bandWidth * 2)
-                    let xOffset = (travel * sweepProgress) - bandWidth
-
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.gray.opacity(0.0),
-                                    Color.gray.opacity(0.45),
-                                    Color.gray.opacity(0.0),
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: bandWidth)
-                        .opacity(isAdjusting ? 0.9 : 0)
-                        .offset(x: xOffset)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                        .clipped()
-                        .allowsHitTesting(false)
-                }
-            }
-        }
-        .overlay {
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: max(0, min(1, sweepPosition - 0.15))),
-                            .init(color: Color.textQuaternary, location: max(0, min(1, sweepPosition))),
-                            .init(color: .clear, location: max(0, min(1, sweepPosition + 0.15))),
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .opacity(sweepPosition < 1.3 ? 1 : 0)
-                .allowsHitTesting(false)
-        }
-        .sensoryFeedback(.success, trigger: logSet.completedAt) { oldValue, newValue in
-            oldValue == nil && newValue != nil
-        }
-        .sensoryFeedback(.success, trigger: editSaveCount)
-        .onChange(of: isUpdating) {
-            guard isUpdating else { return }
-            sweepPosition = -0.3
-            contentOpacity = 0.3
-            withAnimation(.easeOut(duration: 0.8)) {
-                sweepPosition = 1.3
-                contentOpacity = 1.0
-            }
-        }
-        .background {
-            Rectangle()
-                .fill(Color.red)
-                .opacity(pulseOpacity)
-        }
-        .onChange(of: adjustmentFailed) {
-            guard !isCompleted else { return }
-
-            guard adjustmentFailed else {
-                var transaction = Transaction()
-                transaction.animation = nil
-                withTransaction(transaction) {
-                    pulseOpacity = 0.0
-                }
-                return
-            }
-
-            pulseOpacity = 0.0
-            withAnimation(
-                .easeInOut(duration: 0.25)
-                    .repeatCount(Self.errorPulseCount * 2, autoreverses: true)
-            ) {
-                pulseOpacity = 0.3
-            }
-        }
-        .onChange(of: isAdjusting) {
-            debugSetRowLog("Row \(self.setNumber) adjusting=\(self.isAdjusting) completed=\(self.isCompleted)")
-            if isAdjusting {
-                startSweep()
-            } else {
-                stopSweep()
-            }
-        }
-        .onDisappear {
-            stopSweep()
         }
     }
 
@@ -297,6 +225,58 @@ struct SetRowView: View {
             .frame(width: 28)
     }
 
+    // MARK: - Overlays
+
+    @ViewBuilder
+    private var adjustingSweepOverlay: some View {
+        if !isCompleted {
+            GeometryReader { proxy in
+                let bandWidth: CGFloat = 72
+                let travel = proxy.size.width + (bandWidth * 2)
+                let xOffset = (travel * sweepProgress) - bandWidth
+
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.gray.opacity(0.0),
+                                Color.gray.opacity(0.45),
+                                Color.gray.opacity(0.0),
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: bandWidth)
+                    .opacity(isAdjusting ? 0.9 : 0)
+                    .offset(x: xOffset)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .clipped()
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var updatingSweepOverlay: some View {
+        Rectangle()
+            .fill(
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: max(0, min(1, sweepPosition - 0.15))),
+                        .init(color: Color.textQuaternary, location: max(0, min(1, sweepPosition))),
+                        .init(color: .clear, location: max(0, min(1, sweepPosition + 0.15))),
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .opacity(sweepPosition < 1.3 ? 1 : 0)
+            .allowsHitTesting(false)
+    }
+
+    // MARK: - State Helpers
+
     private func syncDisplayedValues() {
         weightText = logSet.weight > 0 ? logSet.weight.formattedWeight : ""
         repsText = "\(logSet.reps)"
@@ -307,6 +287,46 @@ struct SetRowView: View {
         guard !isCompleted else { return }
         weightText = logSet.weight > 0 ? logSet.weight.formattedWeight : ""
         repsText = "\(logSet.reps)"
+    }
+
+    private func handleUpdatingChanged() {
+        guard isUpdating else { return }
+        sweepPosition = -0.3
+        contentOpacity = 0.3
+        withAnimation(.easeOut(duration: 0.8)) {
+            sweepPosition = 1.3
+            contentOpacity = 1.0
+        }
+    }
+
+    private func handleAdjustmentFailedChanged() {
+        guard !isCompleted else { return }
+
+        guard adjustmentFailed else {
+            var transaction = Transaction()
+            transaction.animation = nil
+            withTransaction(transaction) {
+                pulseOpacity = 0.0
+            }
+            return
+        }
+
+        pulseOpacity = 0.0
+        withAnimation(
+            .easeInOut(duration: 0.25)
+                .repeatCount(Self.errorPulseCount * 2, autoreverses: true)
+        ) {
+            pulseOpacity = 0.3
+        }
+    }
+
+    private func handleAdjustingChanged() {
+        debugSetRowLog("Row \(self.setNumber) adjusting=\(self.isAdjusting) completed=\(self.isCompleted)")
+        if isAdjusting {
+            startSweep()
+        } else {
+            stopSweep()
+        }
     }
 
     private func startSweep() {
