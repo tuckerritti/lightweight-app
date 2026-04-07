@@ -334,7 +334,8 @@ struct ActiveWorkoutView: View {
             await ExerciseLibraryService.resolveAndPersistNewExercises(
                 entries: log.entries,
                 apiKey: apiKey,
-                modelContext: modelContext
+                modelContext: modelContext,
+                onCost: { [appState] cost in appState.recordCost(cost) }
             )
 
             // Backfill targetMuscles on the log's entries so the muscle map works
@@ -373,7 +374,8 @@ struct ActiveWorkoutView: View {
                 profile: profileSnapshot,
                 exercises: exercises.map { ExerciseSnapshot(from: $0) },
                 history: history,
-                progress: viewModel.entries
+                progress: viewModel.entries,
+                onCost: { [appState] cost in appState.recordCost(cost) }
             )
 
             // Wrap to intercept results and apply workout changes

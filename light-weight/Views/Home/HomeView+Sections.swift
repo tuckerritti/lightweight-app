@@ -221,7 +221,11 @@ extension HomeView {
     func startButton(_ workout: Workout) -> some View {
         Button {
             if appState.activeViewModel == nil {
-                appState.activeViewModel = ActiveWorkoutViewModel(workout: workout)
+                appState.activeViewModel = ActiveWorkoutViewModel(
+                    workout: workout,
+                    appState: appState,
+                    onCost: { [appState] cost in appState.recordCost(cost) }
+                )
             }
             navigationPath.append(Destination.activeWorkout)
         } label: {
