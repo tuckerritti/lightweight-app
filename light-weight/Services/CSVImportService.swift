@@ -16,6 +16,8 @@ enum CSVColumnRole: String, CaseIterable, Identifiable {
     case weight = "Weight"
     case reps = "Reps"
     case rpe = "RPE"
+    case duration = "Duration"
+    case distance = "Distance"
     case date = "Date"
     case workoutName = "Workout Name"
     case skip = "Skip"
@@ -129,6 +131,8 @@ enum CSVImportService {
             else if lower.contains("weight") { role = .weight }
             else if lower.contains("rep") { role = .reps }
             else if lower.contains("rpe") { role = .rpe }
+            else if lower.contains("duration") || lower.contains("seconds") || (lower.contains("time") && !lower.contains("date")) { role = .duration }
+            else if lower.contains("distance") || lower.contains("meters") { role = .distance }
             else if lower.contains("date") || lower.contains("time") { role = .date }
             else if lower.contains("workout") || lower == "title" { role = .workoutName }
             else { return CSVColumnRole.skip }
@@ -222,16 +226,25 @@ enum CSVImportService {
                 }
 
                 let sets: [LogSet] = rows.map { row in
-                    LogSet(
+                    let durationSeconds = value(row, index[.duration]).flatMap { Int(Double($0) ?? 0) }
+                    let distanceMeters = value(row, index[.distance]).flatMap { Double($0) }
+                    return LogSet(
                         reps: Int(Double(value(row, index[.reps]) ?? "0") ?? 0),
                         weight: Double(value(row, index[.weight]) ?? "0") ?? 0,
                         rpe: Int(Double(value(row, index[.rpe]) ?? "0") ?? 0),
-                        completedAt: workoutDate
+                        completedAt: workoutDate,
+                        durationSeconds: durationSeconds,
+                        distanceMeters: distanceMeters
                     )
                 }
 
+                // Infer exercise type from available data
+                let hasDuration = sets.contains { $0.durationSeconds != nil }
+                let hasDistance = sets.contains { $0.distanceMeters != nil }
+                let exerciseType: ExerciseType = hasDistance ? .timedDistance : (hasDuration ? .timed : .weightReps)
+
                 allExerciseNames.append((name: exerciseName, muscleGroup: muscleGroup))
-                return LogEntry(exerciseName: exerciseName, muscleGroup: muscleGroup, targetMuscles: targetMuscles, sets: sets)
+                return LogEntry(exerciseName: exerciseName, muscleGroup: muscleGroup, exerciseType: exerciseType, targetMuscles: targetMuscles, sets: sets)
             }
 
             let log = WorkoutLog(workoutName: workoutName, entries: entries, startedAt: workoutDate)

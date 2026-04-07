@@ -421,8 +421,25 @@ struct ExerciseDetailView: View {
 
     private func historyRow(date: Date, entry: LogEntry, isPR: Bool) -> some View {
         let completedSets = entry.sets.filter { $0.completedAt != nil && !$0.isWarmup }
-        let maxWeight = completedSets.map(\.weight).max() ?? 0
-        let totalReps = completedSets.reduce(0) { $0 + $1.reps }
+
+        let setsLabel: String
+        let detailLabel: String
+        switch entry.exerciseType {
+        case .weightReps:
+            let totalReps = completedSets.reduce(0) { $0 + $1.reps }
+            let maxWeight = completedSets.map(\.weight).max() ?? 0
+            setsLabel = "\(completedSets.count) sets \u{00B7} \(totalReps) reps"
+            detailLabel = "\(maxWeight.formattedWeight) lbs \u{00B7} \(entry.muscleGroup)"
+        case .timed:
+            let maxDuration = completedSets.compactMap(\.durationSeconds).max() ?? 0
+            setsLabel = "\(completedSets.count) sets \u{00B7} \(maxDuration)s best"
+            detailLabel = entry.muscleGroup
+        case .timedDistance:
+            let maxDuration = completedSets.compactMap(\.durationSeconds).max() ?? 0
+            let maxDist = completedSets.compactMap(\.distanceMeters).max() ?? 0
+            setsLabel = "\(completedSets.count) sets \u{00B7} \(maxDuration)s"
+            detailLabel = "\(maxDist.formattedDistance) \u{00B7} \(entry.muscleGroup)"
+        }
 
         return HStack {
             HStack(spacing: 12) {
@@ -437,10 +454,10 @@ struct ExerciseDetailView: View {
                 .frame(width: 36)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(completedSets.count) sets · \(totalReps) reps")
+                    Text(setsLabel)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Color.textHeading)
-                    Text("\(maxWeight.formattedWeight) lbs · \(entry.muscleGroup)")
+                    Text(detailLabel)
                         .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(Color.textMuted)
                 }

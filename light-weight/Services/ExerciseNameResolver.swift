@@ -162,6 +162,7 @@ enum ExerciseNameResolver {
             return LogEntry(
                 exerciseName: trimmedName,
                 muscleGroup: trimmedGroup,
+                exerciseType: entry.exerciseType,
                 targetMuscles: entry.targetMuscles,
                 sets: entry.sets
             )
@@ -170,6 +171,7 @@ enum ExerciseNameResolver {
         return LogEntry(
             exerciseName: reference.name,
             muscleGroup: reference.muscleGroup,
+            exerciseType: entry.exerciseType,
             targetMuscles: reference.targetMuscles.isEmpty ? entry.targetMuscles : reference.targetMuscles,
             sets: entry.sets
         )

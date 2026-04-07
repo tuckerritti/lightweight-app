@@ -131,7 +131,9 @@ struct HistoryListView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(Color.textSecondary)
                 } else {
-                    Text("\(log.totalSets) sets · \(log.durationMinutes) min · \(Int(log.totalVolume).formatted()) lbs")
+                    Text(log.totalVolume > 0
+                        ? "\(log.totalSets) sets · \(log.durationMinutes) min · \(Int(log.totalVolume).formatted()) lbs"
+                        : "\(log.totalSets) sets · \(log.durationMinutes) min")
                         .font(.system(size: 13))
                         .foregroundStyle(Color.textSecondary)
                 }

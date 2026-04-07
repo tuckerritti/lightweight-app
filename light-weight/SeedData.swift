@@ -9,14 +9,25 @@ private func tm(_ muscle: String, _ weight: Double) -> TargetMuscle {
 private struct SeedExercise {
     let name: String
     let muscleGroup: String
+    let exerciseType: ExerciseType
     let exerciseDescription: String
     let instructions: [String]
     let targetMuscles: [TargetMuscle]
+
+    init(name: String, muscleGroup: String, exerciseType: ExerciseType = .weightReps, exerciseDescription: String, instructions: [String], targetMuscles: [TargetMuscle]) {
+        self.name = name
+        self.muscleGroup = muscleGroup
+        self.exerciseType = exerciseType
+        self.exerciseDescription = exerciseDescription
+        self.instructions = instructions
+        self.targetMuscles = targetMuscles
+    }
 
     var model: Exercise {
         Exercise(
             name: name,
             muscleGroup: muscleGroup,
+            exerciseType: exerciseType,
             exerciseDescription: exerciseDescription,
             instructions: instructions,
             targetMuscles: targetMuscles
@@ -213,6 +224,54 @@ enum SeedData {
             ],
             targetMuscles: [tm("abs", 1.0)]
         ),
+        SeedExercise(
+            name: "Plank",
+            muscleGroup: "Core",
+            exerciseType: .timed,
+            exerciseDescription: "Bodyweight plank hold",
+            instructions: [
+                "Start in push-up position on forearms",
+                "Keep body in a straight line from head to heels",
+                "Brace core and hold for prescribed duration",
+            ],
+            targetMuscles: [tm("abs", 0.6), tm("lower-back", 0.2), tm("deltoids", 0.2)]
+        ),
+        SeedExercise(
+            name: "Dead Hang",
+            muscleGroup: "Back",
+            exerciseType: .timed,
+            exerciseDescription: "Passive hang from pull-up bar",
+            instructions: [
+                "Grip bar with palms facing away, shoulder width",
+                "Hang with arms fully extended",
+                "Relax shoulders and breathe steadily",
+            ],
+            targetMuscles: [tm("forearm", 0.5), tm("upper-back", 0.3), tm("biceps", 0.2)]
+        ),
+        SeedExercise(
+            name: "Wall Sit",
+            muscleGroup: "Legs",
+            exerciseType: .timed,
+            exerciseDescription: "Isometric wall squat hold",
+            instructions: [
+                "Lean back against wall with feet shoulder width apart",
+                "Slide down until thighs are parallel to floor",
+                "Hold position with back flat against wall",
+            ],
+            targetMuscles: [tm("quadriceps", 0.7), tm("gluteal", 0.3)]
+        ),
+        SeedExercise(
+            name: "Farmer's Carry",
+            muscleGroup: "Core",
+            exerciseType: .timedDistance,
+            exerciseDescription: "Loaded carry with dumbbells or kettlebells",
+            instructions: [
+                "Pick up weights at your sides",
+                "Walk with upright posture and braced core",
+                "Keep shoulders packed and grip tight",
+            ],
+            targetMuscles: [tm("forearm", 0.3), tm("upper-trapezius", 0.25), tm("abs", 0.25), tm("gluteal", 0.2)]
+        ),
     ]
 
     private static let exerciseLookup = Dictionary(uniqueKeysWithValues: exerciseSeeds.map { ($0.name, $0) })
@@ -225,6 +284,7 @@ enum SeedData {
         return LogEntry(
             exerciseName: exercise.name,
             muscleGroup: exercise.muscleGroup,
+            exerciseType: exercise.exerciseType,
             targetMuscles: exercise.targetMuscles,
             sets: sets
         )
@@ -418,14 +478,18 @@ enum SeedData {
                     LogSet(reps: 12, weight: 135, rpe: 8, completedAt: daysAgo(1)),
                     LogSet(reps: 12, weight: 135, rpe: 8, completedAt: daysAgo(1)),
                 ]),
-                logEntry("Wrist Curl", sets: [
-                    LogSet(reps: 15, weight: 30, rpe: 7, completedAt: daysAgo(1)),
-                    LogSet(reps: 15, weight: 30, rpe: 7, completedAt: daysAgo(1)),
+                logEntry("Plank", sets: [
+                    LogSet(weight: 0, rpe: 7, completedAt: daysAgo(1), durationSeconds: 45),
+                    LogSet(weight: 0, rpe: 8, completedAt: daysAgo(1), durationSeconds: 40),
+                    LogSet(weight: 0, rpe: 8, completedAt: daysAgo(1), durationSeconds: 35),
                 ]),
-                logEntry("Cable Crunch", sets: [
-                    LogSet(reps: 15, weight: 50, rpe: 7, completedAt: daysAgo(1)),
-                    LogSet(reps: 15, weight: 50, rpe: 8, completedAt: daysAgo(1)),
-                    LogSet(reps: 15, weight: 50, rpe: 8, completedAt: daysAgo(1)),
+                logEntry("Dead Hang", sets: [
+                    LogSet(weight: 0, rpe: 7, completedAt: daysAgo(1), durationSeconds: 30),
+                    LogSet(weight: 0, rpe: 8, completedAt: daysAgo(1), durationSeconds: 25),
+                ]),
+                logEntry("Farmer's Carry", sets: [
+                    LogSet(weight: 50, rpe: 7, completedAt: daysAgo(1), durationSeconds: 30, distanceMeters: 30),
+                    LogSet(weight: 50, rpe: 8, completedAt: daysAgo(1), durationSeconds: 30, distanceMeters: 25),
                 ]),
             ]),
         ]

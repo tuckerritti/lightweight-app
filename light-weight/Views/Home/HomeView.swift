@@ -416,7 +416,7 @@ struct HomeView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Color.textPrimary)
                     Spacer()
-                    Text("\(exercise.sets.count) sets · \(exercise.sets.reduce(0) { $0 + $1.reps }) reps")
+                    Text(exerciseSummary(exercise))
                         .font(.system(size: 13))
                         .foregroundStyle(Color.textSecondary)
                 }
@@ -443,6 +443,20 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .padding(.horizontal, 20)
         .padding(.top, 14)
+    }
+
+    private func exerciseSummary(_ exercise: WorkoutExercise) -> String {
+        switch exercise.exerciseType {
+        case .weightReps:
+            return "\(exercise.sets.count) sets \u{00B7} \(exercise.sets.reduce(0) { $0 + $1.reps }) reps"
+        case .timed:
+            let totalSec = exercise.sets.compactMap(\.durationSeconds).reduce(0, +)
+            return "\(exercise.sets.count) sets \u{00B7} \(totalSec)s"
+        case .timedDistance:
+            let totalSec = exercise.sets.compactMap(\.durationSeconds).reduce(0, +)
+            let totalDist = exercise.sets.compactMap(\.distanceMeters).reduce(0, +)
+            return "\(exercise.sets.count) sets \u{00B7} \(totalSec)s \u{00B7} \(totalDist.formattedDistance)"
+        }
     }
 
     private func insightCallout(_ insight: String) -> some View {

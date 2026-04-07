@@ -130,7 +130,13 @@ private func muscleIntensities(from logs: [WorkoutLog]) -> [MuscleIntensity] {
                 let fatigue = fatigueMultiplier(hoursSinceSet: hours)
                 guard fatigue > 0 else { continue }
 
-                let volume = set.weight * Double(set.reps)
+                let volume: Double
+                switch entry.exerciseType {
+                case .weightReps:
+                    volume = set.weight * Double(set.reps)
+                case .timed, .timedDistance:
+                    volume = Double(set.durationSeconds ?? 0) * max(1, set.weight)
+                }
                 let effort = effortMultiplier(rpe: set.rpe)
                 let contribution = volume * effort * fatigue
 

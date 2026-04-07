@@ -10,8 +10,14 @@ final class Exercise {
     var muscleGroup: String
     var exerciseDescription: String?
     var instructionsData: Data?
+    var exerciseTypeRaw: String?
 
     var targetMusclesData: Data?
+
+    var exerciseType: ExerciseType {
+        get { ExerciseType(rawValue: exerciseTypeRaw ?? "") ?? .weightReps }
+        set { exerciseTypeRaw = newValue.rawValue }
+    }
 
     @Transient private var _instructionsCache: [String]?
     @Transient private var _targetMusclesCache: [TargetMuscle]?
@@ -53,9 +59,10 @@ final class Exercise {
         }
     }
 
-    init(name: String, muscleGroup: String, exerciseDescription: String? = nil, instructions: [String] = [], targetMuscles: [TargetMuscle] = []) {
+    init(name: String, muscleGroup: String, exerciseType: ExerciseType = .weightReps, exerciseDescription: String? = nil, instructions: [String] = [], targetMuscles: [TargetMuscle] = []) {
         self.name = name
         self.muscleGroup = muscleGroup
+        self.exerciseTypeRaw = exerciseType.rawValue
         self.exerciseDescription = exerciseDescription
         if !instructions.isEmpty {
             do {

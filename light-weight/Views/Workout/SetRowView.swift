@@ -7,6 +7,7 @@ private func debugSetRowLog(_ message: String) {
 struct SetRowView: View {
     private static let errorPulseCount = 3
 
+    let exerciseType: ExerciseType
     let setNumber: Int
     let logSet: LogSet
     let plannedSet: WorkoutSet?
@@ -14,12 +15,14 @@ struct SetRowView: View {
     let isUpdating: Bool
     let isAdjusting: Bool
     let adjustmentFailed: Bool
-    let onLog: (Double, Int, Int) -> Void
-    var onEdit: ((Double, Int, Int) -> Void)? = nil
+    let onLog: (Double, Int, Int, Int?, Double?) -> Void
+    var onEdit: ((Double, Int, Int, Int?, Double?) -> Void)? = nil
 
     @State private var weightText: String = ""
     @State private var repsText: String = ""
     @State private var rpeText: String = ""
+    @State private var durationText: String = ""
+    @State private var distanceText: String = ""
     @State private var didInit = false
     @State private var sweepPosition: CGFloat = 1.3
     @State private var contentOpacity: Double = 1.0
@@ -29,9 +32,17 @@ struct SetRowView: View {
     @State private var editSaveCount = 0
 
     private var isCompleted: Bool { logSet.completedAt != nil }
+
     private var canLog: Bool {
-        guard let rpe = Int(rpeText) else { return false }
-        return parseWeight(weightText) != nil && Int(repsText) != nil && (1...10).contains(rpe)
+        guard let rpe = Int(rpeText), (1...10).contains(rpe) else { return false }
+        switch exerciseType {
+        case .weightReps:
+            return parseWeight(weightText) != nil && Int(repsText) != nil
+        case .timed:
+            return Int(durationText) != nil
+        case .timedDistance:
+            return Int(durationText) != nil && parseWeight(distanceText) != nil
+        }
     }
 
     var body: some View {
@@ -96,10 +107,77 @@ struct SetRowView: View {
         }
         .onChange(of: logSet.weight) { syncPendingValues() }
         .onChange(of: logSet.reps) { syncPendingValues() }
+        .onChange(of: logSet.durationSeconds) { syncPendingValues() }
+        .onChange(of: logSet.distanceMeters) { syncPendingValues() }
         .onChange(of: logSet.rpe) {
             if isCompleted {
                 rpeText = logSet.rpe > 0 ? String(logSet.rpe) : ""
             }
+        }
+    }
+
+    // MARK: - Input Fields
+
+    private var weightField: some View {
+        NumericTextField(text: $weightText, placeholder: exerciseType == .weightReps ? "0" : "BW", keyboardType: .decimalPad)
+            .frame(maxWidth: .infinity)
+            .frame(height: 33)
+            .background(Color.appSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var repsField: some View {
+        NumericTextField(text: $repsText, placeholder: "0", keyboardType: .numberPad)
+            .frame(maxWidth: .infinity)
+            .frame(height: 33)
+            .background(Color.appSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var durationField: some View {
+        NumericTextField(text: $durationText, placeholder: "sec", keyboardType: .numberPad)
+            .frame(maxWidth: .infinity)
+            .frame(height: 33)
+            .background(Color.appSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var distanceField: some View {
+        NumericTextField(text: $distanceText, placeholder: "m", keyboardType: .decimalPad)
+            .frame(maxWidth: .infinity)
+            .frame(height: 33)
+            .background(Color.appSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var rpeField: some View {
+        NumericTextField(text: $rpeText, placeholder: plannedSet?.targetRpe.map { "@\($0)" } ?? "—", keyboardType: .numberPad)
+            .frame(width: 48)
+            .frame(height: 33)
+            .background(Color.appSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private func inputFields(rpeEditPlaceholder: Bool = false) -> some View {
+        weightField
+        switch exerciseType {
+        case .weightReps:
+            repsField
+        case .timed:
+            durationField
+        case .timedDistance:
+            durationField
+            distanceField
+        }
+        if rpeEditPlaceholder {
+            NumericTextField(text: $rpeText, placeholder: "—", keyboardType: .numberPad)
+                .frame(width: 48)
+                .frame(height: 33)
+                .background(Color.appSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            rpeField
         }
     }
 
@@ -110,9 +188,23 @@ struct SetRowView: View {
         Text(weightText)
             .font(.system(size: 14, weight: .medium))
             .frame(maxWidth: .infinity)
-        Text(repsText)
-            .font(.system(size: 14, weight: .medium))
-            .frame(maxWidth: .infinity)
+        switch exerciseType {
+        case .weightReps:
+            Text(repsText)
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity)
+        case .timed:
+            Text(durationText.isEmpty ? "—" : "\(durationText)s")
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity)
+        case .timedDistance:
+            Text(durationText.isEmpty ? "—" : "\(durationText)s")
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity)
+            Text(distanceText.isEmpty ? "—" : "\(distanceText)m")
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity)
+        }
         Text(rpeText.isEmpty ? "—" : rpeText)
             .font(.system(size: 14, weight: .medium))
             .frame(width: 48, alignment: .center)
@@ -131,29 +223,11 @@ struct SetRowView: View {
 
     @ViewBuilder
     private var editingRow: some View {
-        NumericTextField(text: $weightText, placeholder: "0", keyboardType: .decimalPad)
-            .frame(maxWidth: .infinity)
-            .frame(height: 33)
-            .background(Color.appSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-        NumericTextField(text: $repsText, placeholder: "0", keyboardType: .numberPad)
-            .frame(maxWidth: .infinity)
-            .frame(height: 33)
-            .background(Color.appSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-        NumericTextField(text: $rpeText, placeholder: "—", keyboardType: .numberPad)
-            .frame(width: 48)
-            .frame(height: 33)
-            .background(Color.appSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+        inputFields(rpeEditPlaceholder: true)
 
         Button {
-            guard let weight = parseWeight(weightText),
-                  let reps = Int(repsText),
-                  let rpe = Int(rpeText) else { return }
-            onEdit?(weight, reps, rpe)
+            guard let values = collectValues() else { return }
+            onEdit?(values.weight, values.reps, values.rpe, values.duration, values.distance)
             isEditing = false
             editSaveCount += 1
         } label: {
@@ -170,29 +244,11 @@ struct SetRowView: View {
 
     @ViewBuilder
     private var activeRow: some View {
-        NumericTextField(text: $weightText, placeholder: "0", keyboardType: .decimalPad)
-            .frame(maxWidth: .infinity)
-            .frame(height: 33)
-            .background(Color.appSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-        NumericTextField(text: $repsText, placeholder: "0", keyboardType: .numberPad)
-            .frame(maxWidth: .infinity)
-            .frame(height: 33)
-            .background(Color.appSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-        NumericTextField(text: $rpeText, placeholder: plannedSet?.targetRpe.map { "@\($0)" } ?? "—", keyboardType: .numberPad)
-            .frame(width: 48)
-            .frame(height: 33)
-            .background(Color.appSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+        inputFields()
 
         Button {
-            guard let weight = parseWeight(weightText),
-                  let reps = Int(repsText),
-                  let rpe = Int(rpeText) else { return }
-            onLog(weight, reps, rpe)
+            guard let values = collectValues() else { return }
+            onLog(values.weight, values.reps, values.rpe, values.duration, values.distance)
         } label: {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 20))
@@ -200,21 +256,38 @@ struct SetRowView: View {
         }
         .disabled(!canLog)
         .frame(width: 28)
-        .accessibilityLabel(canLog ? "Log set" : "Enter weight, reps, and RPE (1–10) to log")
+        .accessibilityLabel(canLog ? "Log set" : "Enter values and RPE (1–10) to log")
     }
 
     // MARK: - Future
 
     @ViewBuilder
     private var futureRow: some View {
-        Text(plannedSet.map { $0.weight.formattedWeight } ?? "—")
+        Text(plannedSet.map { $0.weight > 0 ? $0.weight.formattedWeight : "BW" } ?? "—")
             .font(.system(size: 14))
             .foregroundStyle(Color.textTertiary)
             .frame(maxWidth: .infinity)
-        Text(plannedSet.map { "\($0.reps)" } ?? "—")
-            .font(.system(size: 14))
-            .foregroundStyle(Color.textTertiary)
-            .frame(maxWidth: .infinity)
+        switch exerciseType {
+        case .weightReps:
+            Text(plannedSet.map { "\($0.reps)" } ?? "—")
+                .font(.system(size: 14))
+                .foregroundStyle(Color.textTertiary)
+                .frame(maxWidth: .infinity)
+        case .timed:
+            Text(plannedSet?.durationSeconds.map { "\($0)s" } ?? "—")
+                .font(.system(size: 14))
+                .foregroundStyle(Color.textTertiary)
+                .frame(maxWidth: .infinity)
+        case .timedDistance:
+            Text(plannedSet?.durationSeconds.map { "\($0)s" } ?? "—")
+                .font(.system(size: 14))
+                .foregroundStyle(Color.textTertiary)
+                .frame(maxWidth: .infinity)
+            Text(plannedSet?.distanceMeters.map { "\($0.formattedDistance)" } ?? "—")
+                .font(.system(size: 14))
+                .foregroundStyle(Color.textTertiary)
+                .frame(maxWidth: .infinity)
+        }
         Text(plannedSet?.targetRpe.map { "@\($0)" } ?? "—")
             .font(.system(size: 14))
             .foregroundStyle(Color.textTertiary)
@@ -223,6 +296,24 @@ struct SetRowView: View {
             .strokeBorder(Color.divider, lineWidth: 1.5)
             .frame(width: 20, height: 20)
             .frame(width: 28)
+    }
+
+    // MARK: - Value Collection
+
+    private func collectValues() -> (weight: Double, reps: Int, rpe: Int, duration: Int?, distance: Double?)? {
+        guard let rpe = Int(rpeText), (1...10).contains(rpe) else { return nil }
+        let weight = parseWeight(weightText) ?? 0
+        switch exerciseType {
+        case .weightReps:
+            guard let reps = Int(repsText) else { return nil }
+            return (weight, reps, rpe, nil, nil)
+        case .timed:
+            guard let duration = Int(durationText) else { return nil }
+            return (weight, 0, rpe, duration, nil)
+        case .timedDistance:
+            guard let duration = Int(durationText), let distance = parseWeight(distanceText) else { return nil }
+            return (weight, 0, rpe, duration, distance)
+        }
     }
 
     // MARK: - Overlays
@@ -279,14 +370,18 @@ struct SetRowView: View {
 
     private func syncDisplayedValues() {
         weightText = logSet.weight > 0 ? logSet.weight.formattedWeight : ""
-        repsText = "\(logSet.reps)"
+        repsText = logSet.reps > 0 ? "\(logSet.reps)" : ""
         rpeText = logSet.rpe > 0 ? String(logSet.rpe) : ""
+        durationText = logSet.durationSeconds.map { "\($0)" } ?? ""
+        distanceText = logSet.distanceMeters.map { $0.formattedWeight } ?? ""
     }
 
     private func syncPendingValues() {
         guard !isCompleted else { return }
         weightText = logSet.weight > 0 ? logSet.weight.formattedWeight : ""
-        repsText = "\(logSet.reps)"
+        repsText = logSet.reps > 0 ? "\(logSet.reps)" : ""
+        durationText = logSet.durationSeconds.map { "\($0)" } ?? ""
+        distanceText = logSet.distanceMeters.map { $0.formattedWeight } ?? ""
     }
 
     private func handleUpdatingChanged() {
