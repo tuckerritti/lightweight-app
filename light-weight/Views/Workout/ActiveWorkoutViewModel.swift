@@ -66,9 +66,10 @@ final class ActiveWorkoutViewModel {
             LogEntry(
                 exerciseName: exercise.name,
                 muscleGroup: exercise.muscleGroup,
+                exerciseType: exercise.exerciseType,
                 targetMuscles: exercise.targetMuscles,
                 sets: exercise.sets.map { plannedSet in
-                    LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: plannedSet.targetRpe ?? 0, isWarmup: plannedSet.isWarmup)
+                    LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: plannedSet.targetRpe ?? 0, isWarmup: plannedSet.isWarmup, durationSeconds: plannedSet.durationSeconds, distanceMeters: plannedSet.distanceMeters)
                 },
                 supersetGroupId: exercise.supersetGroupId
             )
@@ -146,7 +147,7 @@ final class ActiveWorkoutViewModel {
         return nil
     }
 
-    func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
+    func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int, durationSeconds: Int? = nil, distanceMeters: Double? = nil) {
         let planned = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
         let isWarmup = entries[exerciseIndex].sets[setIndex].isWarmup
         let fractionalWeight = weight.rounded() != weight
@@ -154,12 +155,16 @@ final class ActiveWorkoutViewModel {
         entries[exerciseIndex].sets[setIndex].weight = weight
         entries[exerciseIndex].sets[setIndex].reps = reps
         entries[exerciseIndex].sets[setIndex].rpe = rpe
+        entries[exerciseIndex].sets[setIndex].durationSeconds = durationSeconds
+        entries[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
         entries[exerciseIndex].sets[setIndex].completedAt = .now
 
         if exerciseIndex < workoutExercises.count,
            setIndex < workoutExercises[exerciseIndex].sets.count {
             workoutExercises[exerciseIndex].sets[setIndex].weight = weight
             workoutExercises[exerciseIndex].sets[setIndex].reps = reps
+            workoutExercises[exerciseIndex].sets[setIndex].durationSeconds = durationSeconds
+            workoutExercises[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
         }
 
         if let planned, appState?.showRestTimer ?? false {
@@ -199,17 +204,21 @@ final class ActiveWorkoutViewModel {
         return false
     }
 
-    func editSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
+    func editSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int, durationSeconds: Int? = nil, distanceMeters: Double? = nil) {
         let isWarmup = entries[exerciseIndex].sets[setIndex].isWarmup
         let fractionalWeight = weight.rounded() != weight
         entries[exerciseIndex].sets[setIndex].weight = weight
         entries[exerciseIndex].sets[setIndex].reps = reps
         entries[exerciseIndex].sets[setIndex].rpe = rpe
+        entries[exerciseIndex].sets[setIndex].durationSeconds = durationSeconds
+        entries[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
 
         if exerciseIndex < workoutExercises.count,
            setIndex < workoutExercises[exerciseIndex].sets.count {
             workoutExercises[exerciseIndex].sets[setIndex].weight = weight
             workoutExercises[exerciseIndex].sets[setIndex].reps = reps
+            workoutExercises[exerciseIndex].sets[setIndex].durationSeconds = durationSeconds
+            workoutExercises[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
         }
 
         logger.info(
@@ -307,12 +316,13 @@ final class ActiveWorkoutViewModel {
                         let setIndex = completedSets.count + i
                         if setIndex < newExercise.sets.count {
                             let planned = newExercise.sets[setIndex]
-                            sets.append(LogSet(reps: planned.reps, weight: planned.weight, rpe: planned.targetRpe ?? 0, isWarmup: planned.isWarmup))
+                            sets.append(LogSet(reps: planned.reps, weight: planned.weight, rpe: planned.targetRpe ?? 0, isWarmup: planned.isWarmup, durationSeconds: planned.durationSeconds, distanceMeters: planned.distanceMeters))
                         }
                     }
                     updatedEntries.append(LogEntry(
                         exerciseName: existing.exerciseName,
                         muscleGroup: existing.muscleGroup,
+                        exerciseType: existing.exerciseType,
                         targetMuscles: existing.targetMuscles,
                         sets: sets,
                         supersetGroupId: newExercise.supersetGroupId
@@ -322,8 +332,9 @@ final class ActiveWorkoutViewModel {
                     updatedEntries.append(LogEntry(
                         exerciseName: newExercise.name,
                         muscleGroup: newExercise.muscleGroup,
+                        exerciseType: newExercise.exerciseType,
                         targetMuscles: existing.targetMuscles,
-                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup) },
+                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup, durationSeconds: $0.durationSeconds, distanceMeters: $0.distanceMeters) },
                         supersetGroupId: newExercise.supersetGroupId
                     ))
                     updatedExercises.append(newExercise)
@@ -332,8 +343,9 @@ final class ActiveWorkoutViewModel {
                 updatedEntries.append(LogEntry(
                     exerciseName: newExercise.name,
                     muscleGroup: newExercise.muscleGroup,
+                    exerciseType: newExercise.exerciseType,
                     targetMuscles: newExercise.targetMuscles,
-                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup) },
+                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup, durationSeconds: $0.durationSeconds, distanceMeters: $0.distanceMeters) },
                     supersetGroupId: newExercise.supersetGroupId
                 ))
                 updatedExercises.append(newExercise)
@@ -350,8 +362,10 @@ final class ActiveWorkoutViewModel {
             let preservedEntry = LogEntry(
                 exerciseName: entry.exerciseName,
                 muscleGroup: entry.muscleGroup,
+                exerciseType: entry.exerciseType,
                 targetMuscles: entry.targetMuscles,
-                sets: completedSets
+                sets: completedSets,
+                supersetGroupId: entry.supersetGroupId
             )
 
             let preservedExercise = completedExercise(
@@ -435,8 +449,10 @@ final class ActiveWorkoutViewModel {
         return WorkoutExercise(
             name: newExercise.name,
             muscleGroup: newExercise.muscleGroup,
+            exerciseType: newExercise.exerciseType,
             targetMuscles: newExercise.targetMuscles,
-            sets: actualCompletedSets + remainingSets
+            sets: actualCompletedSets + remainingSets,
+            supersetGroupId: newExercise.supersetGroupId
         )
     }
 
@@ -454,6 +470,7 @@ final class ActiveWorkoutViewModel {
         return WorkoutExercise(
             name: exerciseName,
             muscleGroup: muscleGroup,
+            exerciseType: plannedExercise?.exerciseType ?? .weightReps,
             targetMuscles: plannedExercise?.targetMuscles ?? [],
             sets: actualCompletedSets
         )
@@ -470,7 +487,9 @@ final class ActiveWorkoutViewModel {
             weight: completedSet.weight,
             restSeconds: plannedSet?.restSeconds ?? 90,
             targetRpe: plannedSet?.targetRpe,
-            isWarmup: completedSet.isWarmup
+            isWarmup: completedSet.isWarmup,
+            durationSeconds: completedSet.durationSeconds,
+            distanceMeters: completedSet.distanceMeters
         )
     }
 
@@ -480,7 +499,7 @@ final class ActiveWorkoutViewModel {
         let completedEntries = entries.compactMap { entry -> LogEntry? in
             let completedSets = entry.sets.filter { $0.completedAt != nil }
             guard !completedSets.isEmpty else { return nil }
-            return LogEntry(exerciseName: entry.exerciseName, muscleGroup: entry.muscleGroup, targetMuscles: entry.targetMuscles, sets: completedSets)
+            return LogEntry(exerciseName: entry.exerciseName, muscleGroup: entry.muscleGroup, exerciseType: entry.exerciseType, targetMuscles: entry.targetMuscles, sets: completedSets, supersetGroupId: entry.supersetGroupId)
         }
         let log = WorkoutLog(
             workoutName: workoutName,

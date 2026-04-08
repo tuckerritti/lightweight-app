@@ -16,28 +16,34 @@ struct LogSet: Codable, Hashable, Sendable, Identifiable {
     var rpe: Int
     var completedAt: Date?
     var isWarmup: Bool
+    var durationSeconds: Int?
+    var distanceMeters: Double?
 
-    init(reps: Int, weight: Double, rpe: Int, completedAt: Date? = nil, isWarmup: Bool = false) {
+    init(reps: Int = 0, weight: Double = 0, rpe: Int = 0, completedAt: Date? = nil, isWarmup: Bool = false, durationSeconds: Int? = nil, distanceMeters: Double? = nil) {
         self.id = UUID()
         self.reps = reps
         self.weight = weight
         self.rpe = rpe
         self.completedAt = completedAt
         self.isWarmup = isWarmup
+        self.durationSeconds = durationSeconds
+        self.distanceMeters = distanceMeters
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-        reps = try container.decode(Int.self, forKey: .reps)
-        weight = try container.decode(Double.self, forKey: .weight)
+        reps = try container.decodeIfPresent(Int.self, forKey: .reps) ?? 0
+        weight = try container.decodeIfPresent(Double.self, forKey: .weight) ?? 0
         rpe = try container.decode(Int.self, forKey: .rpe)
         completedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
         isWarmup = try container.decodeIfPresent(Bool.self, forKey: .isWarmup) ?? false
+        durationSeconds = try container.decodeIfPresent(Int.self, forKey: .durationSeconds)
+        distanceMeters = try container.decodeIfPresent(Double.self, forKey: .distanceMeters)
     }
 
     static func == (lhs: LogSet, rhs: LogSet) -> Bool {
-        lhs.reps == rhs.reps && lhs.weight == rhs.weight && lhs.rpe == rhs.rpe && lhs.completedAt == rhs.completedAt && lhs.isWarmup == rhs.isWarmup
+        lhs.reps == rhs.reps && lhs.weight == rhs.weight && lhs.rpe == rhs.rpe && lhs.completedAt == rhs.completedAt && lhs.isWarmup == rhs.isWarmup && lhs.durationSeconds == rhs.durationSeconds && lhs.distanceMeters == rhs.distanceMeters
     }
 
     func hash(into hasher: inout Hasher) {
@@ -46,6 +52,8 @@ struct LogSet: Codable, Hashable, Sendable, Identifiable {
         hasher.combine(rpe)
         hasher.combine(completedAt)
         hasher.combine(isWarmup)
+        hasher.combine(durationSeconds)
+        hasher.combine(distanceMeters)
     }
 }
 
@@ -53,14 +61,16 @@ struct LogEntry: Codable, Hashable, Sendable, Identifiable {
     var id: UUID
     var exerciseName: String
     var muscleGroup: String
+    var exerciseType: ExerciseType
     var targetMuscles: [TargetMuscle]
     var sets: [LogSet]
     var supersetGroupId: Int?
 
-    init(exerciseName: String, muscleGroup: String, targetMuscles: [TargetMuscle] = [], sets: [LogSet], supersetGroupId: Int? = nil) {
+    init(exerciseName: String, muscleGroup: String, exerciseType: ExerciseType = .weightReps, targetMuscles: [TargetMuscle] = [], sets: [LogSet], supersetGroupId: Int? = nil) {
         self.id = UUID()
         self.exerciseName = exerciseName
         self.muscleGroup = muscleGroup
+        self.exerciseType = exerciseType
         self.targetMuscles = targetMuscles
         self.sets = sets
         self.supersetGroupId = supersetGroupId
@@ -71,18 +81,20 @@ struct LogEntry: Codable, Hashable, Sendable, Identifiable {
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         exerciseName = try container.decode(String.self, forKey: .exerciseName)
         muscleGroup = try container.decode(String.self, forKey: .muscleGroup)
+        exerciseType = try container.decodeIfPresent(ExerciseType.self, forKey: .exerciseType) ?? .weightReps
         targetMuscles = try container.decodeIfPresent([TargetMuscle].self, forKey: .targetMuscles) ?? []
         sets = try container.decode([LogSet].self, forKey: .sets)
         supersetGroupId = try container.decodeIfPresent(Int.self, forKey: .supersetGroupId)
     }
 
     static func == (lhs: LogEntry, rhs: LogEntry) -> Bool {
-        lhs.exerciseName == rhs.exerciseName && lhs.muscleGroup == rhs.muscleGroup && lhs.sets == rhs.sets && lhs.supersetGroupId == rhs.supersetGroupId
+        lhs.exerciseName == rhs.exerciseName && lhs.muscleGroup == rhs.muscleGroup && lhs.exerciseType == rhs.exerciseType && lhs.sets == rhs.sets && lhs.supersetGroupId == rhs.supersetGroupId
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(exerciseName)
         hasher.combine(muscleGroup)
+        hasher.combine(exerciseType)
         hasher.combine(sets)
         hasher.combine(supersetGroupId)
     }
@@ -118,11 +130,22 @@ extension Array where Element == LogEntry {
                     workingSetCount += 1
                     label = "Set \(workingSetCount)"
                 }
+                let metrics: String
+                switch entry.exerciseType {
+                case .weightReps:
+                    metrics = "\(set.weight.formattedWeight)lbs x \(set.reps)"
+                case .timed:
+                    let weightStr = set.weight > 0 ? "\(set.weight.formattedWeight)lbs " : "BW "
+                    metrics = "\(weightStr)\(set.durationSeconds ?? 0)s"
+                case .timedDistance:
+                    let weightStr = set.weight > 0 ? "\(set.weight.formattedWeight)lbs " : ""
+                    let distStr = set.distanceMeters.map { " \($0.formattedDistance)" } ?? ""
+                    metrics = "\(weightStr)\(set.durationSeconds ?? 0)s\(distStr)"
+                }
                 if set.completedAt != nil {
-                    let rpeStr = " @RPE \(set.rpe)"
-                    return "  \(label): COMPLETED - \(set.weight.formattedWeight)lbs x \(set.reps)\(rpeStr)"
+                    return "  \(label): COMPLETED - \(metrics) @RPE \(set.rpe)"
                 } else {
-                    return "  \(label): PLANNED - \(set.weight.formattedWeight)lbs x \(set.reps)"
+                    return "  \(label): PLANNED - \(metrics)"
                 }
             }.joined(separator: "\n")
             return "\(entry.exerciseName) (\(entry.muscleGroup)):\n\(sets)"

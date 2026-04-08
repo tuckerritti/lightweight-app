@@ -93,7 +93,8 @@ struct WorkoutDebriefView: View {
             logger.info("workout_debrief success totalSets=\(log.totalSets, privacy: .public) volume=\(Int(log.totalVolume), privacy: .public)")
         } catch {
             logger.error("workout_debrief failure errorType=\(String(reflecting: type(of: error)), privacy: .public)")
-            debrief = "Nice work finishing \(log.workoutName)! \(log.totalSets) sets, \(Int(log.totalVolume).formatted()) lbs total volume in \(log.durationMinutes) minutes."
+            let volumeStr = log.totalVolume > 0 ? ", \(Int(log.totalVolume).formatted()) lbs total volume" : ""
+            debrief = "Nice work finishing \(log.workoutName)! \(log.totalSets) sets\(volumeStr) in \(log.durationMinutes) minutes."
         }
 
         isLoading = false

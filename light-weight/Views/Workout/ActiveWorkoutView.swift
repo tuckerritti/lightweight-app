@@ -260,8 +260,19 @@ struct ActiveWorkoutView: View {
                     .frame(width: 40, alignment: .leading)
                 Text("LBS")
                     .frame(maxWidth: .infinity)
-                Text("REPS")
-                    .frame(maxWidth: .infinity)
+                switch entry.exerciseType {
+                case .weightReps:
+                    Text("REPS")
+                        .frame(maxWidth: .infinity)
+                case .timed:
+                    Text("TIME")
+                        .frame(maxWidth: .infinity)
+                case .timedDistance:
+                    Text("TIME")
+                        .frame(maxWidth: .infinity)
+                    Text("DIST")
+                        .frame(maxWidth: .infinity)
+                }
                 Text("RPE")
                     .frame(width: 48, alignment: .center)
                 Color.clear
@@ -277,6 +288,7 @@ struct ActiveWorkoutView: View {
                 ForEach(Array(entry.sets.enumerated()), id: \.element.id) { setIndex, set in
                     let workingSetNumber = entry.sets.prefix(setIndex).filter { !$0.isWarmup }.count + 1
                     SetRowView(
+                        exerciseType: entry.exerciseType,
                         setNumber: workingSetNumber,
                         logSet: set,
                         plannedSet: viewModel.plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
@@ -284,11 +296,11 @@ struct ActiveWorkoutView: View {
                         isUpdating: viewModel.updatedSetKeys.contains("\(exerciseIndex)-\(setIndex)"),
                         isAdjusting: viewModel.isAdjusting,
                         adjustmentFailed: viewModel.adjustmentFailed,
-                        onLog: { weight, reps, rpe in
-                            viewModel.logSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe)
+                        onLog: { weight, reps, rpe, duration, distance in
+                            viewModel.logSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe, durationSeconds: duration, distanceMeters: distance)
                         },
-                        onEdit: { weight, reps, rpe in
-                            viewModel.editSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe)
+                        onEdit: { weight, reps, rpe, duration, distance in
+                            viewModel.editSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe, durationSeconds: duration, distanceMeters: distance)
                         }
                     )
                     if setIndex < entry.sets.count - 1 {
