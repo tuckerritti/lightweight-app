@@ -276,7 +276,7 @@ enum SeedData {
 
     private static let exerciseLookup = Dictionary(uniqueKeysWithValues: exerciseSeeds.map { ($0.name, $0) })
 
-    private static func logEntry(_ exerciseName: String, sets: [LogSet]) -> LogEntry {
+    private static func logEntry(_ exerciseName: String, sets: [LogSet], supersetGroupId: Int? = nil) -> LogEntry {
         guard let exercise = exerciseLookup[exerciseName] else {
             preconditionFailure("Missing seed exercise for log entry: \(exerciseName)")
         }
@@ -286,7 +286,8 @@ enum SeedData {
             muscleGroup: exercise.muscleGroup,
             exerciseType: exercise.exerciseType,
             targetMuscles: exercise.targetMuscles,
-            sets: sets
+            sets: sets,
+            supersetGroupId: supersetGroupId
         )
     }
 
@@ -440,12 +441,12 @@ enum SeedData {
                     LogSet(reps: 8, weight: 125, rpe: 7, completedAt: daysAgo(2)),
                     LogSet(reps: 8, weight: 125, rpe: 7, completedAt: daysAgo(2)),
                     LogSet(reps: 8, weight: 125, rpe: 8, completedAt: daysAgo(2)),
-                ]),
+                ], supersetGroupId: 1),
                 logEntry("Pull-Up", sets: [
                     LogSet(reps: 10, weight: 0, rpe: 7, completedAt: daysAgo(2)),
                     LogSet(reps: 9, weight: 0, rpe: 8, completedAt: daysAgo(2)),
                     LogSet(reps: 8, weight: 0, rpe: 9, completedAt: daysAgo(2)),
-                ]),
+                ], supersetGroupId: 1),
                 logEntry("Barbell Curl", sets: [
                     LogSet(reps: 12, weight: 55, rpe: 7, completedAt: daysAgo(2)),
                     LogSet(reps: 12, weight: 55, rpe: 7, completedAt: daysAgo(2)),
@@ -477,6 +478,15 @@ enum SeedData {
                     LogSet(reps: 12, weight: 135, rpe: 7, completedAt: daysAgo(1)),
                     LogSet(reps: 12, weight: 135, rpe: 8, completedAt: daysAgo(1)),
                     LogSet(reps: 12, weight: 135, rpe: 8, completedAt: daysAgo(1)),
+                ], supersetGroupId: 1),
+                logEntry("Wrist Curl", sets: [
+                    LogSet(reps: 15, weight: 30, rpe: 7, completedAt: daysAgo(1)),
+                    LogSet(reps: 15, weight: 30, rpe: 7, completedAt: daysAgo(1)),
+                ], supersetGroupId: 1),
+                logEntry("Cable Crunch", sets: [
+                    LogSet(reps: 15, weight: 50, rpe: 7, completedAt: daysAgo(1)),
+                    LogSet(reps: 15, weight: 50, rpe: 8, completedAt: daysAgo(1)),
+                    LogSet(reps: 15, weight: 50, rpe: 8, completedAt: daysAgo(1)),
                 ]),
                 logEntry("Plank", sets: [
                     LogSet(weight: 0, rpe: 7, completedAt: daysAgo(1), durationSeconds: 45),

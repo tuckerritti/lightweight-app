@@ -169,6 +169,11 @@ extension HomeView {
                     Text(exercise.name)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Color.textPrimary)
+                    if exercise.supersetGroupId != nil {
+                        Text("SS")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.accent)
+                    }
                     Spacer()
                     Text(exerciseSummary(exercise))
                         .font(.system(size: 13))

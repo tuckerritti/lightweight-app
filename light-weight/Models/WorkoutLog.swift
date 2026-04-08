@@ -64,14 +64,16 @@ struct LogEntry: Codable, Hashable, Sendable, Identifiable {
     var exerciseType: ExerciseType
     var targetMuscles: [TargetMuscle]
     var sets: [LogSet]
+    var supersetGroupId: Int?
 
-    init(exerciseName: String, muscleGroup: String, exerciseType: ExerciseType = .weightReps, targetMuscles: [TargetMuscle] = [], sets: [LogSet]) {
+    init(exerciseName: String, muscleGroup: String, exerciseType: ExerciseType = .weightReps, targetMuscles: [TargetMuscle] = [], sets: [LogSet], supersetGroupId: Int? = nil) {
         self.id = UUID()
         self.exerciseName = exerciseName
         self.muscleGroup = muscleGroup
         self.exerciseType = exerciseType
         self.targetMuscles = targetMuscles
         self.sets = sets
+        self.supersetGroupId = supersetGroupId
     }
 
     init(from decoder: Decoder) throws {
@@ -82,10 +84,11 @@ struct LogEntry: Codable, Hashable, Sendable, Identifiable {
         exerciseType = try container.decodeIfPresent(ExerciseType.self, forKey: .exerciseType) ?? .weightReps
         targetMuscles = try container.decodeIfPresent([TargetMuscle].self, forKey: .targetMuscles) ?? []
         sets = try container.decode([LogSet].self, forKey: .sets)
+        supersetGroupId = try container.decodeIfPresent(Int.self, forKey: .supersetGroupId)
     }
 
     static func == (lhs: LogEntry, rhs: LogEntry) -> Bool {
-        lhs.exerciseName == rhs.exerciseName && lhs.muscleGroup == rhs.muscleGroup && lhs.exerciseType == rhs.exerciseType && lhs.sets == rhs.sets
+        lhs.exerciseName == rhs.exerciseName && lhs.muscleGroup == rhs.muscleGroup && lhs.exerciseType == rhs.exerciseType && lhs.sets == rhs.sets && lhs.supersetGroupId == rhs.supersetGroupId
     }
 
     func hash(into hasher: inout Hasher) {
@@ -93,10 +96,29 @@ struct LogEntry: Codable, Hashable, Sendable, Identifiable {
         hasher.combine(muscleGroup)
         hasher.combine(exerciseType)
         hasher.combine(sets)
+        hasher.combine(supersetGroupId)
     }
 }
 
 extension Array where Element == LogEntry {
+    var entryGroups: [[(flatIndex: Int, entry: LogEntry)]] {
+        var groups: [[(flatIndex: Int, entry: LogEntry)]] = []
+        var currentGroup: [(flatIndex: Int, entry: LogEntry)] = []
+        var currentGroupId: Int? = nil
+
+        for (index, entry) in enumerated() {
+            if let gid = entry.supersetGroupId, gid == currentGroupId {
+                currentGroup.append((index, entry))
+            } else {
+                if !currentGroup.isEmpty { groups.append(currentGroup) }
+                currentGroup = [(index, entry)]
+                currentGroupId = entry.supersetGroupId
+            }
+        }
+        if !currentGroup.isEmpty { groups.append(currentGroup) }
+        return groups
+    }
+
     func formattedProgress() -> String {
         map { entry in
             var workingSetCount = 0

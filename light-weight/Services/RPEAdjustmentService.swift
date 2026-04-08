@@ -42,6 +42,7 @@ struct RPEAdjustmentService {
               "name": "Exercise Name",
               "muscleGroup": "Muscle Group",
               "exerciseType": "weightReps",
+              "supersetGroupId": null,
               "sets": [
                 { "reps": 8, "weight": 135, "restSeconds": 90, "targetRpe": 8, "isWarmup": false }
               ]
@@ -53,6 +54,7 @@ struct RPEAdjustmentService {
         For timed exercises, adjust durationSeconds instead of reps. Keep exerciseType unchanged.
 
         Rules for adjustments:
+        - Preserve supersetGroupId values exactly as they appear. Do not change groupings during RPE adjustments.
         - Preserve the isWarmup flag on all sets. Do not convert warmup sets to working sets or vice versa.
         - Preserve the exerciseType on all exercises. Do not change exercise types.
         - Weight changes should use real plate increments (2.5 lb minimum)

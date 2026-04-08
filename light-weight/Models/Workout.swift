@@ -11,6 +11,24 @@ struct Workout: Codable, Sendable, Hashable {
     var exercises: [WorkoutExercise]
     var insight: String?
 
+    var exerciseGroups: [[(flatIndex: Int, exercise: WorkoutExercise)]] {
+        var groups: [[(flatIndex: Int, exercise: WorkoutExercise)]] = []
+        var currentGroup: [(flatIndex: Int, exercise: WorkoutExercise)] = []
+        var currentGroupId: Int? = nil
+
+        for (index, exercise) in exercises.enumerated() {
+            if let gid = exercise.supersetGroupId, gid == currentGroupId {
+                currentGroup.append((index, exercise))
+            } else {
+                if !currentGroup.isEmpty { groups.append(currentGroup) }
+                currentGroup = [(index, exercise)]
+                currentGroupId = exercise.supersetGroupId
+            }
+        }
+        if !currentGroup.isEmpty { groups.append(currentGroup) }
+        return groups
+    }
+
     var totalSets: Int { exercises.reduce(0) { $0 + $1.sets.filter { !$0.isWarmup }.count } }
     var estimatedMinutes: Int {
         let totalRest = exercises.flatMap(\.sets).reduce(0) { $0 + $1.restSeconds }
@@ -25,13 +43,15 @@ struct WorkoutExercise: Codable, Sendable, Hashable {
     var exerciseType: ExerciseType
     var targetMuscles: [TargetMuscle]
     var sets: [WorkoutSet]
+    var supersetGroupId: Int?
 
-    init(name: String, muscleGroup: String, exerciseType: ExerciseType = .weightReps, targetMuscles: [TargetMuscle] = [], sets: [WorkoutSet]) {
+    init(name: String, muscleGroup: String, exerciseType: ExerciseType = .weightReps, targetMuscles: [TargetMuscle] = [], sets: [WorkoutSet], supersetGroupId: Int? = nil) {
         self.name = name
         self.muscleGroup = muscleGroup
         self.exerciseType = exerciseType
         self.targetMuscles = targetMuscles
         self.sets = sets
+        self.supersetGroupId = supersetGroupId
     }
 
     init(from decoder: Decoder) throws {
@@ -45,6 +65,7 @@ struct WorkoutExercise: Codable, Sendable, Hashable {
         exerciseType = try container.decodeIfPresent(ExerciseType.self, forKey: .exerciseType) ?? .weightReps
         targetMuscles = try container.decodeIfPresent([TargetMuscle].self, forKey: .targetMuscles) ?? []
         sets = try container.decode([WorkoutSet].self, forKey: .sets)
+        supersetGroupId = try container.decodeIfPresent(Int.self, forKey: .supersetGroupId)
     }
 }
 

@@ -50,8 +50,12 @@ struct ActiveWorkoutView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     headerSection(viewModel: viewModel)
 
-                    ForEach(Array(viewModel.entries.enumerated()), id: \.element.id) { exerciseIndex, entry in
-                        exerciseSection(viewModel: viewModel, exerciseIndex: exerciseIndex, entry: entry)
+                    ForEach(Array(viewModel.entryGroups.enumerated()), id: \.offset) { _, group in
+                        if group.count > 1 {
+                            supersetGroupSection(viewModel: viewModel, entries: group)
+                        } else if let first = group.first {
+                            exerciseSection(viewModel: viewModel, exerciseIndex: first.flatIndex, entry: first.entry)
+                        }
                     }
 
                     cancelButton(viewModel: viewModel)
@@ -205,6 +209,29 @@ struct ActiveWorkoutView: View {
                 .tracking(0.72)
                 .foregroundStyle(Color.textTertiary)
         }
+    }
+
+    // MARK: - Superset Group
+
+    private func supersetGroupSection(viewModel: ActiveWorkoutViewModel, entries: [(flatIndex: Int, entry: LogEntry)]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("SUPERSET")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.0)
+                .foregroundStyle(Color.accent)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, -4)
+
+            ForEach(entries, id: \.entry.id) { flatIndex, entry in
+                exerciseSection(viewModel: viewModel, exerciseIndex: flatIndex, entry: entry)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.accent.opacity(0.05))
+                .padding(.horizontal, 8)
+        )
     }
 
     // MARK: - Exercise Section
