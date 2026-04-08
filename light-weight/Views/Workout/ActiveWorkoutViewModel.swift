@@ -30,6 +30,8 @@ final class ActiveWorkoutViewModel {
 
     var elapsedSeconds: Int = 0
 
+    var entryGroups: [[(flatIndex: Int, entry: LogEntry)]] { entries.entryGroups }
+
     var totalSets: Int { entries.reduce(0) { $0 + $1.sets.filter { !$0.isWarmup }.count } }
     var completedSets: Int { entries.flatMap(\.sets).filter { $0.completedAt != nil && !$0.isWarmup }.count }
     var totalExercises: Int { entries.count }
@@ -67,7 +69,8 @@ final class ActiveWorkoutViewModel {
                 targetMuscles: exercise.targetMuscles,
                 sets: exercise.sets.map { plannedSet in
                     LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: plannedSet.targetRpe ?? 0, isWarmup: plannedSet.isWarmup)
-                }
+                },
+                supersetGroupId: exercise.supersetGroupId
             )
         }
     }
@@ -114,14 +117,33 @@ final class ActiveWorkoutViewModel {
 
     func isActiveSet(exerciseIndex: Int, setIndex: Int) -> Bool {
         if timerService.isRunning { return false }
-        for (ei, entry) in entries.enumerated() {
-            for (si, set) in entry.sets.enumerated() {
-                if set.completedAt == nil {
-                    return ei == exerciseIndex && si == setIndex
+        let next = nextUncompletedSet()
+        return next?.exerciseIndex == exerciseIndex && next?.setIndex == setIndex
+    }
+
+    private func nextUncompletedSet() -> (exerciseIndex: Int, setIndex: Int)? {
+        for group in entryGroups {
+            if group.count > 1 {
+                // Superset: round-robin through exercises per set round
+                let maxSets = group.map(\.entry.sets.count).max() ?? 0
+                for round in 0..<maxSets {
+                    for (flatIndex, entry) in group {
+                        guard round < entry.sets.count else { continue }
+                        if entry.sets[round].completedAt == nil {
+                            return (flatIndex, round)
+                        }
+                    }
+                }
+            } else if let (flatIndex, entry) = group.first {
+                // Standalone exercise: sequential
+                for (si, set) in entry.sets.enumerated() {
+                    if set.completedAt == nil {
+                        return (flatIndex, si)
+                    }
                 }
             }
         }
-        return false
+        return nil
     }
 
     func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
@@ -141,7 +163,10 @@ final class ActiveWorkoutViewModel {
         }
 
         if let planned, appState?.showRestTimer ?? false {
-            timerService.start(seconds: planned.restSeconds)
+            let skipRest = shouldSkipRestForSuperset(exerciseIndex: exerciseIndex)
+            if !skipRest {
+                timerService.start(seconds: planned.restSeconds)
+            }
         }
 
         let missedTarget = planned.map { p in
@@ -160,6 +185,18 @@ final class ActiveWorkoutViewModel {
         if !apiKey.isEmpty && missedTarget {
             requestRPEAdjustment()
         }
+    }
+
+    private func shouldSkipRestForSuperset(exerciseIndex: Int) -> Bool {
+        guard let groupId = entries[exerciseIndex].supersetGroupId else { return false }
+        // Find the next exercise with an uncompleted set
+        for ei in (exerciseIndex + 1)..<entries.count {
+            guard entries[ei].supersetGroupId == groupId else { break }
+            if entries[ei].sets.contains(where: { $0.completedAt == nil }) {
+                return true
+            }
+        }
+        return false
     }
 
     func editSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
@@ -277,7 +314,8 @@ final class ActiveWorkoutViewModel {
                         exerciseName: existing.exerciseName,
                         muscleGroup: existing.muscleGroup,
                         targetMuscles: existing.targetMuscles,
-                        sets: sets
+                        sets: sets,
+                        supersetGroupId: newExercise.supersetGroupId
                     ))
                     updatedExercises.append(mergedExercise(newExercise, existingIndex: existingIndex, completedSets: completedSets))
                 } else {
@@ -285,7 +323,8 @@ final class ActiveWorkoutViewModel {
                         exerciseName: newExercise.name,
                         muscleGroup: newExercise.muscleGroup,
                         targetMuscles: existing.targetMuscles,
-                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup) }
+                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup) },
+                        supersetGroupId: newExercise.supersetGroupId
                     ))
                     updatedExercises.append(newExercise)
                 }
@@ -294,7 +333,8 @@ final class ActiveWorkoutViewModel {
                     exerciseName: newExercise.name,
                     muscleGroup: newExercise.muscleGroup,
                     targetMuscles: newExercise.targetMuscles,
-                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup) }
+                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup) },
+                    supersetGroupId: newExercise.supersetGroupId
                 ))
                 updatedExercises.append(newExercise)
             }
