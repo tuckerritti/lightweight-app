@@ -30,6 +30,12 @@ final class AppState {
             UserDefaults.standard.set(showRestTimer, forKey: "showRestTimer")
         }
     }
+    var showLiveActivity: Bool = UserDefaults.standard.bool(forKey: "showLiveActivity") {
+        didSet {
+            guard shouldPersistState else { return }
+            UserDefaults.standard.set(showLiveActivity, forKey: "showLiveActivity")
+        }
+    }
 
     var dailyCost: TokenCost {
         didSet {
