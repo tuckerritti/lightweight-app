@@ -83,6 +83,18 @@ final class ActiveWorkoutViewModel {
         elapsedSeconds = 0
         resumeTimer()
         logger.info("workout_session_clock start exercises=\(self.entries.count, privacy: .public) totalSets=\(self.totalSets, privacy: .public)")
+
+        if appState?.showLiveActivity == true,
+           let (exerciseName, setDescription, weightRepsLabel) = activeSetInfo() {
+            LiveActivityManager.shared.startWorkout(
+                name: workoutName,
+                exerciseName: exerciseName,
+                setDescription: setDescription,
+                weightRepsLabel: weightRepsLabel,
+                completedSets: completedSets,
+                totalSets: totalSets
+            )
+        }
     }
 
     func resumeTimer() {
@@ -103,6 +115,7 @@ final class ActiveWorkoutViewModel {
     func stop() {
         pauseTimer()
         timerService.stop()
+        LiveActivityManager.shared.endWorkout()
         logger.info("workout_session_clock stop elapsedSeconds=\(self.elapsedSeconds, privacy: .public)")
     }
 
@@ -171,7 +184,23 @@ final class ActiveWorkoutViewModel {
             let skipRest = shouldSkipRestForSuperset(exerciseIndex: exerciseIndex)
             if !skipRest {
                 timerService.start(seconds: planned.restSeconds)
+                if appState?.showLiveActivity == true,
+                   let fireDate = timerService.fireDate {
+                    let nextInfo = activeSetInfo()
+                    LiveActivityManager.shared.updateToRestTimer(
+                        exerciseName: nextInfo?.exerciseName ?? entries[exerciseIndex].exerciseName,
+                        setDescription: nextInfo?.setDescription ?? "Done",
+                        timerEndDate: fireDate,
+                        totalSeconds: planned.restSeconds,
+                        completedSets: completedSets,
+                        totalSets: totalSets
+                    )
+                }
+            } else if appState?.showLiveActivity == true {
+                LiveActivityManager.shared.updateToActiveSet()
             }
+        } else if appState?.showLiveActivity == true {
+            LiveActivityManager.shared.updateToActiveSet()
         }
 
         let missedTarget = planned.map { p in
@@ -491,6 +520,28 @@ final class ActiveWorkoutViewModel {
             durationSeconds: completedSet.durationSeconds,
             distanceMeters: completedSet.distanceMeters
         )
+    }
+
+    func activeSetInfo() -> (exerciseName: String, setDescription: String, weightRepsLabel: String)? {
+        for (ei, entry) in entries.enumerated() {
+            for (si, set) in entry.sets.enumerated() {
+                if set.completedAt == nil {
+                    let workingSetsBeforeThis = entry.sets.prefix(si).filter { !$0.isWarmup }.count + 1
+                    let totalWorkingSets = entry.sets.filter { !$0.isWarmup }.count
+                    let setDesc = set.isWarmup ? "Warm-up" : "Set \(workingSetsBeforeThis) of \(totalWorkingSets)"
+
+                    let planned = plannedSet(exerciseIndex: ei, setIndex: si)
+                    let weight = planned?.weight ?? set.weight
+                    let reps = planned?.reps ?? set.reps
+                    let weightLabel = weight.truncatingRemainder(dividingBy: 1) == 0
+                        ? "\(Int(weight))" : String(format: "%.1f", weight)
+                    let label = "\(weightLabel) lbs x \(reps) reps"
+
+                    return (entry.exerciseName, setDesc, label)
+                }
+            }
+        }
+        return nil
     }
 
     func finish() -> WorkoutLog {

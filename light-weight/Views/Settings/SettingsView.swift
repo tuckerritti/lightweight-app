@@ -100,6 +100,10 @@ struct SettingsView: View {
                         Toggle("Show rest timer between sets", isOn: $state.showRestTimer)
                             .tint(Color(hex: 0x34C759))
                     }
+                    settingsSection("LIVE ACTIVITY (BETA)") {
+                        Toggle("Show workout on Dynamic Island", isOn: $state.showLiveActivity)
+                            .tint(Color(hex: 0x34C759))
+                    }
                     settingsSection("REST TIMER SOUNDS") {
                         VStack(spacing: 0) {
                             ForEach(RestSound.allCases) { sound in

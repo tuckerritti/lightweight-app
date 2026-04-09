@@ -28,6 +28,12 @@ final class AppState {
             UserDefaults.standard.set(showRestTimer, forKey: "showRestTimer")
         }
     }
+    var showLiveActivity: Bool = UserDefaults.standard.bool(forKey: "showLiveActivity") {
+        didSet {
+            guard shouldPersistState else { return }
+            UserDefaults.standard.set(showLiveActivity, forKey: "showLiveActivity")
+        }
+    }
 
     var dailyCost: TokenCost {
         didSet {
@@ -142,6 +148,9 @@ struct ContentView: View {
                         }
                     }
             }
+        }
+        .onAppear {
+            LiveActivityManager.shared.appState = appState
         }
         .task(id: currentRoute) {
             let onboardingCompleted = profiles.first?.onboardingCompleted ?? false

@@ -9,16 +9,70 @@
 /* Begin PBXBuildFile section */
 		FEC68C762F8475A9004EC0CC /* AnthropicSwiftSDK in Frameworks */ = {isa = PBXBuildFile; productRef = AA00000200000000003BDB5D /* AnthropicSwiftSDK */; };
 		FEC68C772F8475A9004EC0CC /* MuscleMap in Frameworks */ = {isa = PBXBuildFile; productRef = AA00000400000000003BDB5D /* MuscleMap */; };
+		BB10000E00000000003BDB5D /* WorkoutLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BB10000100000000003BDB5D /* WorkoutLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BB10000F00000000003BDB5D /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB10001100000000003BDB5D /* WidgetKit.framework */; };
+		BB10001000000000003BDB5D /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB10001200000000003BDB5D /* SwiftUI.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BB10000B00000000003BDB5D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FECA7CA92F64E0A6003BDB5D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BB10000700000000003BDB5D;
+			remoteInfo = WorkoutLiveActivity;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BB10000D00000000003BDB5D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BB10000E00000000003BDB5D /* WorkoutLiveActivity.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		FECA7CB12F64E0A6003BDB5D /* light-weight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "light-weight.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB10000100000000003BDB5D /* WorkoutLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WorkoutLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB10001100000000003BDB5D /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		BB10001200000000003BDB5D /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		BB10001300000000003BDB5D /* Exceptions for "WorkoutLiveActivity" folder in "light-weight" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				WorkoutLiveActivityBundle.swift,
+				WorkoutLiveActivityView.swift,
+			);
+			target = FECA7CB02F64E0A6003BDB5D /* light-weight */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FECA7CB32F64E0A6003BDB5D /* light-weight */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "light-weight";
+			sourceTree = "<group>";
+		};
+		BB10000200000000003BDB5D /* WorkoutLiveActivity */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BB10001300000000003BDB5D /* Exceptions for "WorkoutLiveActivity" folder in "light-weight" target */,
+			);
+			path = WorkoutLiveActivity;
+			sourceTree = "<group>";
+		};
+		BB10000300000000003BDB5D /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +87,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB10000400000000003BDB5D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB10000F00000000003BDB5D /* WidgetKit.framework in Frameworks */,
+				BB10001000000000003BDB5D /* SwiftUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -40,6 +103,9 @@
 			isa = PBXGroup;
 			children = (
 				FECA7CB32F64E0A6003BDB5D /* light-weight */,
+				BB10000200000000003BDB5D /* WorkoutLiveActivity */,
+				BB10000300000000003BDB5D /* Shared */,
+				BB10001400000000003BDB5D /* Frameworks */,
 				FECA7CB22F64E0A6003BDB5D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -48,8 +114,18 @@
 			isa = PBXGroup;
 			children = (
 				FECA7CB12F64E0A6003BDB5D /* light-weight.app */,
+				BB10000100000000003BDB5D /* WorkoutLiveActivity.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BB10001400000000003BDB5D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BB10001100000000003BDB5D /* WidgetKit.framework */,
+				BB10001200000000003BDB5D /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -63,13 +139,17 @@
 				FECA7CAD2F64E0A6003BDB5D /* Sources */,
 				FECA7CAE2F64E0A6003BDB5D /* Frameworks */,
 				FECA7CAF2F64E0A6003BDB5D /* Resources */,
+				BB10000D00000000003BDB5D /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BB10000C00000000003BDB5D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				FECA7CB32F64E0A6003BDB5D /* light-weight */,
+				BB10000300000000003BDB5D /* Shared */,
+				BB10000200000000003BDB5D /* WorkoutLiveActivity */,
 			);
 			name = "light-weight";
 			packageProductDependencies = (
@@ -79,6 +159,27 @@
 			productName = "light-weight";
 			productReference = FECA7CB12F64E0A6003BDB5D /* light-weight.app */;
 			productType = "com.apple.product-type.application";
+		};
+		BB10000700000000003BDB5D /* WorkoutLiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB10000A00000000003BDB5D /* Build configuration list for PBXNativeTarget "WorkoutLiveActivity" */;
+			buildPhases = (
+				BB10000500000000003BDB5D /* Sources */,
+				BB10000400000000003BDB5D /* Frameworks */,
+				BB10000600000000003BDB5D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BB10000200000000003BDB5D /* WorkoutLiveActivity */,
+				BB10000300000000003BDB5D /* Shared */,
+			);
+			name = WorkoutLiveActivity;
+			productName = WorkoutLiveActivity;
+			productReference = BB10000100000000003BDB5D /* WorkoutLiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -91,6 +192,9 @@
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					FECA7CB02F64E0A6003BDB5D = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					BB10000700000000003BDB5D = {
 						CreatedOnToolsVersion = 26.3;
 					};
 				};
@@ -114,12 +218,20 @@
 			projectRoot = "";
 			targets = (
 				FECA7CB02F64E0A6003BDB5D /* light-weight */,
+				BB10000700000000003BDB5D /* WorkoutLiveActivity */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		FECA7CAF2F64E0A6003BDB5D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB10000600000000003BDB5D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -155,7 +267,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB10000500000000003BDB5D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BB10000C00000000003BDB5D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BB10000700000000003BDB5D /* WorkoutLiveActivity */;
+			targetProxy = BB10000B00000000003BDB5D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		FECA7CBA2F64E0A7003BDB5D /* Debug */ = {
@@ -361,6 +488,72 @@
 			};
 			name = Release;
 		};
+		BB10000800000000003BDB5D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4YWNLRMN7J;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WorkoutLiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_FILE = WorkoutLiveActivityInfo.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tuckerr.light-weight.debug.live-activity";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		BB10000900000000003BDB5D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4YWNLRMN7J;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WorkoutLiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_FILE = WorkoutLiveActivityInfo.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tuckerr.light-weight.live-activity";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -378,6 +571,15 @@
 			buildConfigurations = (
 				FECA7CBD2F64E0A7003BDB5D /* Debug */,
 				FECA7CBE2F64E0A7003BDB5D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB10000A00000000003BDB5D /* Build configuration list for PBXNativeTarget "WorkoutLiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB10000800000000003BDB5D /* Debug */,
+				BB10000900000000003BDB5D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -16,7 +16,7 @@ final class TimerService {
     let soundService = RestSoundService()
 
     private var timer: Timer?
-    private var fireDate: Date?
+    private(set) var fireDate: Date?
     private var cleanupWork: DispatchWorkItem?
 
     func start(seconds: Int) {
@@ -120,6 +120,7 @@ final class TimerService {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["rest-timer"])
         logger.info("timer expire")
 
+        LiveActivityManager.shared.updateToActiveSet()
         soundService.playCompletionSound()
 
         // Delay stopping background audio so the completion sound can finish playing.
