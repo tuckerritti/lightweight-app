@@ -8,6 +8,7 @@ private let logger = Logger(subsystem: "com.light-weight", category: "LiveActivi
 final class LiveActivityManager {
     static let shared = LiveActivityManager()
 
+    weak var appState: AppState?
     private var currentActivity: Activity<WorkoutActivityAttributes>?
 
     // MARK: - Lifecycle
@@ -60,7 +61,7 @@ final class LiveActivityManager {
     }
 
     func updateToActiveSet() {
-        guard let vm = AppState.shared?.activeViewModel else { return }
+        guard let vm = appState?.activeViewModel else { return }
 
         guard let (exerciseName, setDescription, weightRepsLabel) = findActiveSetInfo(in: vm) else { return }
 
@@ -92,12 +93,12 @@ final class LiveActivityManager {
     // MARK: - Intent Handlers
 
     func handleSkipTimer() {
-        AppState.shared?.activeViewModel?.timerService.stop()
+        appState?.activeViewModel?.timerService.stop()
         updateToActiveSet()
     }
 
     func handleCompleteSet() {
-        guard let vm = AppState.shared?.activeViewModel else { return }
+        guard let vm = appState?.activeViewModel else { return }
         for (ei, entry) in vm.entries.enumerated() {
             for (si, set) in entry.sets.enumerated() {
                 if set.completedAt == nil {

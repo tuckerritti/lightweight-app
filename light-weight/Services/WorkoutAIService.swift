@@ -11,9 +11,10 @@ struct WorkoutAIService {
         profile: UserProfileSnapshot,
         recentLogs: [WorkoutLogSnapshot],
         exercises: [ExerciseSnapshot],
-        healthContext: HealthContext? = nil
+        healthContext: HealthContext? = nil,
+        onCost: @Sendable @escaping (TokenCost) -> Void = { _ in }
     ) async throws -> Workout {
-        let api = ClaudeAPIService(apiKey: apiKey)
+        let api = ClaudeAPIService(apiKey: apiKey, onCost: onCost)
 
         let systemPrompt = """
         You are an expert strength & conditioning coach. Generate a single workout as JSON.
@@ -26,6 +27,8 @@ struct WorkoutAIService {
             {
               "name": "Exercise Name",
               "muscleGroup": "Muscle Group",
+              "exerciseType": "weightReps",
+              "supersetGroupId": null,
               "sets": [
                 { "reps": 8, "weight": 135, "restSeconds": 90, "targetRpe": 8, "isWarmup": false }
               ]
@@ -33,16 +36,26 @@ struct WorkoutAIService {
           ]
         }
 
+        Exercise types:
+        - "weightReps" (default): Standard weight + reps exercises. Sets use "reps" and "weight".
+        - "timed": Time-based exercises (plank, wall sit, dead hang, L-sit). Sets use "durationSeconds" and optionally "weight" (0 for bodyweight). Omit "reps".
+        - "timedDistance": Timed + distance exercises (farmer's carry, sled push). Sets use "durationSeconds", "distanceMeters", and optionally "weight". Omit "reps".
+
+        Example timed set: { "durationSeconds": 60, "weight": 0, "restSeconds": 60, "targetRpe": 7, "isWarmup": false }
+        Example timedDistance set: { "durationSeconds": 45, "distanceMeters": 40, "weight": 70, "restSeconds": 90, "targetRpe": 8, "isWarmup": false }
+
         Guidelines:
         - Program intelligently based on the user's goals, schedule, equipment, and injuries
         - Use progressive overload: reference recent workout logs to pick appropriate weights
         - Vary muscle groups day-to-day so the user doesn't repeat the same muscles back-to-back
         - Rest seconds: 60-90 for hypertrophy, 120-180 for strength, 30-45 for accessories
+        - Use supersetGroupId (integer) to group exercises into supersets. Exercises with the same supersetGroupId are performed back-to-back with minimal rest between them. Use null for standalone exercises. Use 1, 2, 3, etc. for superset groups. Superset exercises must be adjacent in the array.
+        - Use supersets for antagonist muscle pairings (e.g. biceps/triceps, chest/back), time-efficient workouts, or when the user's goals emphasize endurance, conditioning, or fat loss. Typically 2-3 exercises per superset.
         - Weight in lbs. Use 0 for bodyweight exercises. All weights must be in 2.5 lb increments (real plate math). No odd numbers like 186 — use 185 or 187.5.
         - You MUST set targetRpe (1-10) for every set.
         - Use "isWarmup": true for warmup sets (lighter weight, higher reps, lower RPE). Typically 1-2 warmup sets per compound exercise at 50-70% working weight.
         - Never return duplicate exercise names. If an exercise matches the user's library, reuse its exact name.
-        - When the user's exercise library contains a matching exercise, use its EXACT name. Prefer library exercises over inventing new ones unless the workout calls for something different.
+        - When the user's exercise library contains a matching exercise, use its EXACT name and exerciseType. Prefer library exercises over inventing new ones unless the workout calls for something different.
         - For new exercises, follow the naming style of the existing library (e.g., if "Tricep Pushdown - Cable, Straight Bar" exists, a rope variation should be "Tricep Pushdown - Cable, Rope").
         """
 
@@ -63,9 +76,10 @@ struct WorkoutAIService {
         apiKey: String,
         log: WorkoutLogSnapshot,
         recentLogs: [WorkoutLogSnapshot],
-        profile: UserProfileSnapshot
+        profile: UserProfileSnapshot,
+        onCost: @Sendable @escaping (TokenCost) -> Void = { _ in }
     ) async throws -> String {
-        let api = ClaudeAPIService(apiKey: apiKey)
+        let api = ClaudeAPIService(apiKey: apiKey, onCost: onCost)
 
         let systemPrompt = """
         You are an expert strength coach reviewing a just-completed workout. Give a brief, \
@@ -83,7 +97,20 @@ struct WorkoutAIService {
         Duration: \(log.durationMinutes) min
         Exercises:
         \(log.entries.map { entry in
-            "- \(entry.exerciseName): \(entry.sets.map { "\($0.weight.formattedWeight)lbs x\($0.reps) @RPE\($0.rpe)" }.joined(separator: ", "))"
+            let setsStr = entry.sets.map { set -> String in
+                switch entry.exerciseType {
+                case .weightReps:
+                    return "\(set.weight.formattedWeight)lbs x\(set.reps) @RPE\(set.rpe)"
+                case .timed:
+                    let w = set.weight > 0 ? "\(set.weight.formattedWeight)lbs " : "BW "
+                    return "\(w)\(set.durationSeconds ?? 0)s @RPE\(set.rpe)"
+                case .timedDistance:
+                    let w = set.weight > 0 ? "\(set.weight.formattedWeight)lbs " : ""
+                    let d = set.distanceMeters.map { " \($0.formattedDistance)" } ?? ""
+                    return "\(w)\(set.durationSeconds ?? 0)s\(d) @RPE\(set.rpe)"
+                }
+            }.joined(separator: ", ")
+            return "- \(entry.exerciseName): \(setsStr)"
         }.joined(separator: "\n"))
 
         Recent history:
@@ -122,14 +149,32 @@ struct WorkoutAIService {
 
         if !exercises.isEmpty {
             let grouped = Dictionary(grouping: exercises, by: \.muscleGroup)
-            let libraryStr = grouped.map { "\($0.key): \($0.value.map(\.name).joined(separator: ", "))" }.joined(separator: "\n")
+            let libraryStr = grouped.map { group in
+                let names = group.value.map { ex in
+                    ex.exerciseType == .weightReps ? ex.name : "\(ex.name) [\(ex.exerciseType.rawValue)]"
+                }.joined(separator: ", ")
+                return "\(group.key): \(names)"
+            }.joined(separator: "\n")
             parts.append("Exercise library:\n\(libraryStr)")
         }
 
         if !recentLogs.isEmpty {
             let logsStr = recentLogs.prefix(14).map { log in
                 let exercises = log.entries.map { entry in
-                    let sets = entry.sets.map { "\($0.isWarmup ? "(warmup) " : "")\($0.weight.formattedWeight)lbs x\($0.reps) @RPE\($0.rpe)" }.joined(separator: ", ")
+                    let sets = entry.sets.map { set -> String in
+                        let warmupPrefix = set.isWarmup ? "(warmup) " : ""
+                        switch entry.exerciseType {
+                        case .weightReps:
+                            return "\(warmupPrefix)\(set.weight.formattedWeight)lbs x\(set.reps) @RPE\(set.rpe)"
+                        case .timed:
+                            let w = set.weight > 0 ? "\(set.weight.formattedWeight)lbs " : "BW "
+                            return "\(warmupPrefix)\(w)\(set.durationSeconds ?? 0)s @RPE\(set.rpe)"
+                        case .timedDistance:
+                            let w = set.weight > 0 ? "\(set.weight.formattedWeight)lbs " : ""
+                            let d = set.distanceMeters.map { " \($0.formattedDistance)" } ?? ""
+                            return "\(warmupPrefix)\(w)\(set.durationSeconds ?? 0)s\(d) @RPE\(set.rpe)"
+                        }
+                    }.joined(separator: ", ")
                     return "\(entry.exerciseName): \(sets)"
                 }.joined(separator: "; ")
                 return "- \(log.workoutName) (\(log.startedAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))): \(exercises)"
@@ -159,9 +204,10 @@ struct WorkoutAIService {
 
     static func generateTargetMuscles(
         apiKey: String,
-        exercises: [(name: String, muscleGroup: String)]
+        exercises: [(name: String, muscleGroup: String)],
+        onCost: @Sendable @escaping (TokenCost) -> Void = { _ in }
     ) async throws -> [String: [TargetMuscle]] {
-        let api = ClaudeAPIService(apiKey: apiKey)
+        let api = ClaudeAPIService(apiKey: apiKey, onCost: onCost)
 
         let exerciseList = exercises.map { "\($0.name) (\($0.muscleGroup))" }.joined(separator: "\n")
 
@@ -256,6 +302,7 @@ struct WorkoutLogSnapshot: Sendable {
 struct ExerciseSnapshot: Sendable {
     var name: String
     var muscleGroup: String
+    var exerciseType: ExerciseType
     var targetMuscles: [TargetMuscle]
 }
 
@@ -284,7 +331,7 @@ extension WorkoutLogSnapshot {
 
 extension ExerciseSnapshot {
     init(from exercise: Exercise) {
-        self.init(name: exercise.name, muscleGroup: exercise.muscleGroup, targetMuscles: exercise.targetMuscles)
+        self.init(name: exercise.name, muscleGroup: exercise.muscleGroup, exerciseType: exercise.exerciseType, targetMuscles: exercise.targetMuscles)
     }
 }
 

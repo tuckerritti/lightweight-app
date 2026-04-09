@@ -11,9 +11,10 @@ struct RPEAdjustmentService {
     static func adjustWorkout(
         apiKey: String,
         workout: Workout,
-        progress: [LogEntry]
+        progress: [LogEntry],
+        onCost: @Sendable @escaping (TokenCost) -> Void = { _ in }
     ) async -> Workout? {
-        let api = ClaudeAPIService(apiKey: apiKey)
+        let api = ClaudeAPIService(apiKey: apiKey, onCost: onCost)
         let completedSetCount = progress.flatMap(\.sets).filter { $0.completedAt != nil }.count
         logger.info(
             "rpe_adjustment start exercises=\(workout.exercises.count, privacy: .public) completedSets=\(completedSetCount, privacy: .public)"
@@ -40,6 +41,8 @@ struct RPEAdjustmentService {
             {
               "name": "Exercise Name",
               "muscleGroup": "Muscle Group",
+              "exerciseType": "weightReps",
+              "supersetGroupId": null,
               "sets": [
                 { "reps": 8, "weight": 135, "restSeconds": 90, "targetRpe": 8, "isWarmup": false }
               ]
@@ -47,11 +50,16 @@ struct RPEAdjustmentService {
           ]
         }
 
+        Exercise types: "weightReps" (weight+reps), "timed" (durationSeconds + optional weight), "timedDistance" (durationSeconds + distanceMeters + optional weight).
+        For timed exercises, adjust durationSeconds instead of reps. Keep exerciseType unchanged.
+
         Rules for adjustments:
+        - Preserve supersetGroupId values exactly as they appear. Do not change groupings during RPE adjustments.
         - Preserve the isWarmup flag on all sets. Do not convert warmup sets to working sets or vice versa.
+        - Preserve the exerciseType on all exercises. Do not change exercise types.
         - Weight changes should use real plate increments (2.5 lb minimum)
         - Rest range: 30-300 seconds
-        - Reps minimum: 1
+        - Reps minimum: 1 (for weightReps), durationSeconds minimum: 5 (for timed)
         - If all RPEs are on target, return the workout unchanged
         - Be conservative — small adjustments are better than dramatic ones
         - Never return duplicate exercise names. If an exercise matches the current workout, reuse its exact name.

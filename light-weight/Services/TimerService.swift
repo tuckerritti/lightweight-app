@@ -120,9 +120,7 @@ final class TimerService {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["rest-timer"])
         logger.info("timer expire")
 
-        if AppState.shared?.showLiveActivity == true {
-            LiveActivityManager.shared.updateToActiveSet()
-        }
+        LiveActivityManager.shared.updateToActiveSet()
         soundService.playCompletionSound()
 
         // Delay stopping background audio so the completion sound can finish playing.

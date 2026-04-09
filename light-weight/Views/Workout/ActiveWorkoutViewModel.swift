@@ -16,6 +16,8 @@ final class ActiveWorkoutViewModel {
     var workoutName: String
     let timerService = TimerService()
     var apiKey: String = ""
+    weak var appState: AppState?
+    @ObservationIgnored var onCost: @Sendable (TokenCost) -> Void
     private var adjustingCount = 0
     var isAdjusting: Bool { adjustingCount > 0 }
     var adjustmentFailed = false
@@ -27,6 +29,8 @@ final class ActiveWorkoutViewModel {
     private var hasStarted = false
 
     var elapsedSeconds: Int = 0
+
+    var entryGroups: [[(flatIndex: Int, entry: LogEntry)]] { entries.entryGroups }
 
     var totalSets: Int { entries.reduce(0) { $0 + $1.sets.filter { !$0.isWarmup }.count } }
     var completedSets: Int { entries.flatMap(\.sets).filter { $0.completedAt != nil && !$0.isWarmup }.count }
@@ -51,19 +55,23 @@ final class ActiveWorkoutViewModel {
         )
     }
 
-    init(workout: Workout) {
+    init(workout: Workout, appState: AppState? = nil, onCost: @Sendable @escaping (TokenCost) -> Void = { _ in }) {
         self.workoutName = workout.name
         self.workoutExercises = workout.exercises
         self.startedAt = .now
+        self.appState = appState
+        self.onCost = onCost
 
         self.entries = workout.exercises.map { exercise in
             LogEntry(
                 exerciseName: exercise.name,
                 muscleGroup: exercise.muscleGroup,
+                exerciseType: exercise.exerciseType,
                 targetMuscles: exercise.targetMuscles,
                 sets: exercise.sets.map { plannedSet in
-                    LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: plannedSet.targetRpe ?? 0, isWarmup: plannedSet.isWarmup)
-                }
+                    LogSet(reps: plannedSet.reps, weight: plannedSet.weight, rpe: plannedSet.targetRpe ?? 0, isWarmup: plannedSet.isWarmup, durationSeconds: plannedSet.durationSeconds, distanceMeters: plannedSet.distanceMeters)
+                },
+                supersetGroupId: exercise.supersetGroupId
             )
         }
     }
@@ -76,7 +84,7 @@ final class ActiveWorkoutViewModel {
         resumeTimer()
         logger.info("workout_session_clock start exercises=\(self.entries.count, privacy: .public) totalSets=\(self.totalSets, privacy: .public)")
 
-        if AppState.shared?.showLiveActivity == true,
+        if appState?.showLiveActivity == true,
            let (exerciseName, setDescription, weightRepsLabel) = activeSetInfo() {
             LiveActivityManager.shared.startWorkout(
                 name: workoutName,
@@ -123,17 +131,36 @@ final class ActiveWorkoutViewModel {
 
     func isActiveSet(exerciseIndex: Int, setIndex: Int) -> Bool {
         if timerService.isRunning { return false }
-        for (ei, entry) in entries.enumerated() {
-            for (si, set) in entry.sets.enumerated() {
-                if set.completedAt == nil {
-                    return ei == exerciseIndex && si == setIndex
+        let next = nextUncompletedSet()
+        return next?.exerciseIndex == exerciseIndex && next?.setIndex == setIndex
+    }
+
+    private func nextUncompletedSet() -> (exerciseIndex: Int, setIndex: Int)? {
+        for group in entryGroups {
+            if group.count > 1 {
+                // Superset: round-robin through exercises per set round
+                let maxSets = group.map(\.entry.sets.count).max() ?? 0
+                for round in 0..<maxSets {
+                    for (flatIndex, entry) in group {
+                        guard round < entry.sets.count else { continue }
+                        if entry.sets[round].completedAt == nil {
+                            return (flatIndex, round)
+                        }
+                    }
+                }
+            } else if let (flatIndex, entry) = group.first {
+                // Standalone exercise: sequential
+                for (si, set) in entry.sets.enumerated() {
+                    if set.completedAt == nil {
+                        return (flatIndex, si)
+                    }
                 }
             }
         }
-        return false
+        return nil
     }
 
-    func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
+    func logSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int, durationSeconds: Int? = nil, distanceMeters: Double? = nil) {
         let planned = plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex)
         let isWarmup = entries[exerciseIndex].sets[setIndex].isWarmup
         let fractionalWeight = weight.rounded() != weight
@@ -141,29 +168,38 @@ final class ActiveWorkoutViewModel {
         entries[exerciseIndex].sets[setIndex].weight = weight
         entries[exerciseIndex].sets[setIndex].reps = reps
         entries[exerciseIndex].sets[setIndex].rpe = rpe
+        entries[exerciseIndex].sets[setIndex].durationSeconds = durationSeconds
+        entries[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
         entries[exerciseIndex].sets[setIndex].completedAt = .now
 
         if exerciseIndex < workoutExercises.count,
            setIndex < workoutExercises[exerciseIndex].sets.count {
             workoutExercises[exerciseIndex].sets[setIndex].weight = weight
             workoutExercises[exerciseIndex].sets[setIndex].reps = reps
+            workoutExercises[exerciseIndex].sets[setIndex].durationSeconds = durationSeconds
+            workoutExercises[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
         }
 
-        if let planned, AppState.shared?.showRestTimer == true {
-            timerService.start(seconds: planned.restSeconds)
-            if AppState.shared?.showLiveActivity == true,
-               let fireDate = timerService.fireDate {
-                let nextInfo = activeSetInfo()
-                LiveActivityManager.shared.updateToRestTimer(
-                    exerciseName: nextInfo?.exerciseName ?? entries[exerciseIndex].exerciseName,
-                    setDescription: nextInfo?.setDescription ?? "Done",
-                    timerEndDate: fireDate,
-                    totalSeconds: planned.restSeconds,
-                    completedSets: completedSets,
-                    totalSets: totalSets
-                )
+        if let planned, appState?.showRestTimer ?? false {
+            let skipRest = shouldSkipRestForSuperset(exerciseIndex: exerciseIndex)
+            if !skipRest {
+                timerService.start(seconds: planned.restSeconds)
+                if appState?.showLiveActivity == true,
+                   let fireDate = timerService.fireDate {
+                    let nextInfo = activeSetInfo()
+                    LiveActivityManager.shared.updateToRestTimer(
+                        exerciseName: nextInfo?.exerciseName ?? entries[exerciseIndex].exerciseName,
+                        setDescription: nextInfo?.setDescription ?? "Done",
+                        timerEndDate: fireDate,
+                        totalSeconds: planned.restSeconds,
+                        completedSets: completedSets,
+                        totalSets: totalSets
+                    )
+                }
+            } else if appState?.showLiveActivity == true {
+                LiveActivityManager.shared.updateToActiveSet()
             }
-        } else if AppState.shared?.showLiveActivity == true {
+        } else if appState?.showLiveActivity == true {
             LiveActivityManager.shared.updateToActiveSet()
         }
 
@@ -171,7 +207,7 @@ final class ActiveWorkoutViewModel {
             weight != p.weight || reps != p.reps || (p.targetRpe != nil && rpe != p.targetRpe)
         } ?? false
         logger.info(
-            "workout_set complete exerciseIndex=\(exerciseIndex + 1, privacy: .public) setIndex=\(setIndex + 1, privacy: .public) missedTarget=\(missedTarget, privacy: .public) timerStarted=\(planned != nil && AppState.shared?.showRestTimer == true, privacy: .public) isWarmup=\(isWarmup, privacy: .public) fractionalWeight=\(fractionalWeight, privacy: .public)"
+            "workout_set complete exerciseIndex=\(exerciseIndex + 1, privacy: .public) setIndex=\(setIndex + 1, privacy: .public) missedTarget=\(missedTarget, privacy: .public) timerStarted=\(planned != nil && (self.appState?.showRestTimer ?? false), privacy: .public) isWarmup=\(isWarmup, privacy: .public) fractionalWeight=\(fractionalWeight, privacy: .public)"
         )
 
         debugActiveWorkoutLog(
@@ -185,17 +221,33 @@ final class ActiveWorkoutViewModel {
         }
     }
 
-    func editSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int) {
+    private func shouldSkipRestForSuperset(exerciseIndex: Int) -> Bool {
+        guard let groupId = entries[exerciseIndex].supersetGroupId else { return false }
+        // Find the next exercise with an uncompleted set
+        for ei in (exerciseIndex + 1)..<entries.count {
+            guard entries[ei].supersetGroupId == groupId else { break }
+            if entries[ei].sets.contains(where: { $0.completedAt == nil }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    func editSet(exerciseIndex: Int, setIndex: Int, weight: Double, reps: Int, rpe: Int, durationSeconds: Int? = nil, distanceMeters: Double? = nil) {
         let isWarmup = entries[exerciseIndex].sets[setIndex].isWarmup
         let fractionalWeight = weight.rounded() != weight
         entries[exerciseIndex].sets[setIndex].weight = weight
         entries[exerciseIndex].sets[setIndex].reps = reps
         entries[exerciseIndex].sets[setIndex].rpe = rpe
+        entries[exerciseIndex].sets[setIndex].durationSeconds = durationSeconds
+        entries[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
 
         if exerciseIndex < workoutExercises.count,
            setIndex < workoutExercises[exerciseIndex].sets.count {
             workoutExercises[exerciseIndex].sets[setIndex].weight = weight
             workoutExercises[exerciseIndex].sets[setIndex].reps = reps
+            workoutExercises[exerciseIndex].sets[setIndex].durationSeconds = durationSeconds
+            workoutExercises[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
         }
 
         logger.info(
@@ -236,7 +288,8 @@ final class ActiveWorkoutViewModel {
             if let adjusted = await RPEAdjustmentService.adjustWorkout(
                 apiKey: key,
                 workout: workout,
-                progress: progress
+                progress: progress,
+                onCost: onCost
             ) {
                 if tryApplyModifiedWorkout(adjusted, expectedVersion: version) {
                     debugActiveWorkoutLog("Applying auto-RPE adjustment version=\(version)")
@@ -292,22 +345,26 @@ final class ActiveWorkoutViewModel {
                         let setIndex = completedSets.count + i
                         if setIndex < newExercise.sets.count {
                             let planned = newExercise.sets[setIndex]
-                            sets.append(LogSet(reps: planned.reps, weight: planned.weight, rpe: planned.targetRpe ?? 0, isWarmup: planned.isWarmup))
+                            sets.append(LogSet(reps: planned.reps, weight: planned.weight, rpe: planned.targetRpe ?? 0, isWarmup: planned.isWarmup, durationSeconds: planned.durationSeconds, distanceMeters: planned.distanceMeters))
                         }
                     }
                     updatedEntries.append(LogEntry(
                         exerciseName: existing.exerciseName,
                         muscleGroup: existing.muscleGroup,
+                        exerciseType: existing.exerciseType,
                         targetMuscles: existing.targetMuscles,
-                        sets: sets
+                        sets: sets,
+                        supersetGroupId: newExercise.supersetGroupId
                     ))
                     updatedExercises.append(mergedExercise(newExercise, existingIndex: existingIndex, completedSets: completedSets))
                 } else {
                     updatedEntries.append(LogEntry(
                         exerciseName: newExercise.name,
                         muscleGroup: newExercise.muscleGroup,
+                        exerciseType: newExercise.exerciseType,
                         targetMuscles: existing.targetMuscles,
-                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup) }
+                        sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup, durationSeconds: $0.durationSeconds, distanceMeters: $0.distanceMeters) },
+                        supersetGroupId: newExercise.supersetGroupId
                     ))
                     updatedExercises.append(newExercise)
                 }
@@ -315,8 +372,10 @@ final class ActiveWorkoutViewModel {
                 updatedEntries.append(LogEntry(
                     exerciseName: newExercise.name,
                     muscleGroup: newExercise.muscleGroup,
+                    exerciseType: newExercise.exerciseType,
                     targetMuscles: newExercise.targetMuscles,
-                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup) }
+                    sets: newExercise.sets.map { LogSet(reps: $0.reps, weight: $0.weight, rpe: $0.targetRpe ?? 0, isWarmup: $0.isWarmup, durationSeconds: $0.durationSeconds, distanceMeters: $0.distanceMeters) },
+                    supersetGroupId: newExercise.supersetGroupId
                 ))
                 updatedExercises.append(newExercise)
             }
@@ -332,8 +391,10 @@ final class ActiveWorkoutViewModel {
             let preservedEntry = LogEntry(
                 exerciseName: entry.exerciseName,
                 muscleGroup: entry.muscleGroup,
+                exerciseType: entry.exerciseType,
                 targetMuscles: entry.targetMuscles,
-                sets: completedSets
+                sets: completedSets,
+                supersetGroupId: entry.supersetGroupId
             )
 
             let preservedExercise = completedExercise(
@@ -377,7 +438,7 @@ final class ActiveWorkoutViewModel {
     }
 
     private func resyncTimerIfNeeded() {
-        guard timerService.isRunning, AppState.shared?.showRestTimer == true else { return }
+        guard timerService.isRunning, appState?.showRestTimer ?? false else { return }
 
         // Find the last completed set and its new planned rest
         for (ei, entry) in entries.enumerated().reversed() {
@@ -417,8 +478,10 @@ final class ActiveWorkoutViewModel {
         return WorkoutExercise(
             name: newExercise.name,
             muscleGroup: newExercise.muscleGroup,
+            exerciseType: newExercise.exerciseType,
             targetMuscles: newExercise.targetMuscles,
-            sets: actualCompletedSets + remainingSets
+            sets: actualCompletedSets + remainingSets,
+            supersetGroupId: newExercise.supersetGroupId
         )
     }
 
@@ -436,6 +499,7 @@ final class ActiveWorkoutViewModel {
         return WorkoutExercise(
             name: exerciseName,
             muscleGroup: muscleGroup,
+            exerciseType: plannedExercise?.exerciseType ?? .weightReps,
             targetMuscles: plannedExercise?.targetMuscles ?? [],
             sets: actualCompletedSets
         )
@@ -452,7 +516,9 @@ final class ActiveWorkoutViewModel {
             weight: completedSet.weight,
             restSeconds: plannedSet?.restSeconds ?? 90,
             targetRpe: plannedSet?.targetRpe,
-            isWarmup: completedSet.isWarmup
+            isWarmup: completedSet.isWarmup,
+            durationSeconds: completedSet.durationSeconds,
+            distanceMeters: completedSet.distanceMeters
         )
     }
 
@@ -484,7 +550,7 @@ final class ActiveWorkoutViewModel {
         let completedEntries = entries.compactMap { entry -> LogEntry? in
             let completedSets = entry.sets.filter { $0.completedAt != nil }
             guard !completedSets.isEmpty else { return nil }
-            return LogEntry(exerciseName: entry.exerciseName, muscleGroup: entry.muscleGroup, targetMuscles: entry.targetMuscles, sets: completedSets)
+            return LogEntry(exerciseName: entry.exerciseName, muscleGroup: entry.muscleGroup, exerciseType: entry.exerciseType, targetMuscles: entry.targetMuscles, sets: completedSets, supersetGroupId: entry.supersetGroupId)
         }
         let log = WorkoutLog(
             workoutName: workoutName,

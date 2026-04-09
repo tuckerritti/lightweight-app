@@ -61,9 +61,10 @@ struct ChatAIService {
         profile: UserProfileSnapshot,
         exercises: [ExerciseSnapshot],
         history: [ChatMessage] = [],
-        progress: [LogEntry]? = nil
+        progress: [LogEntry]? = nil,
+        onCost: @Sendable @escaping (TokenCost) -> Void = { _ in }
     ) async throws -> AsyncThrowingStream<ChatStreamEvent, Error> {
-        let api = ClaudeAPIService(apiKey: apiKey)
+        let api = ClaudeAPIService(apiKey: apiKey, onCost: onCost)
 
         let mode = currentWorkout != nil ? "modify" : "create"
         let isActiveWorkout = progress != nil
@@ -86,6 +87,8 @@ struct ChatAIService {
             {
               "name": "Exercise Name",
               "muscleGroup": "Muscle Group",
+              "exerciseType": "weightReps",
+              "supersetGroupId": null,
               "sets": [
                 { "reps": 8, "weight": 135, "restSeconds": 90, "targetRpe": 8, "isWarmup": false }
               ]
@@ -93,11 +96,17 @@ struct ChatAIService {
           ]
         }
 
+        Exercise types:
+        - "weightReps" (default): Standard weight + reps. Sets use "reps" and "weight".
+        - "timed": Time-based (plank, wall sit, dead hang). Sets use "durationSeconds" and optionally "weight" (0 for bodyweight). Omit "reps".
+        - "timedDistance": Timed + distance (farmer's carry). Sets use "durationSeconds", "distanceMeters", and optionally "weight". Omit "reps".
+
         You MUST set targetRpe (1-10) for every set.
         Use "isWarmup": true for warmup sets (lighter weight, higher reps, lower RPE). Typically 1-2 warmup sets per compound exercise at 50-70% working weight.
         All weights must be in 2.5 lb increments (real plate math). No odd numbers like 186 — use 185 or 187.5.
-        Never return duplicate exercise names. If an exercise matches the current workout or the library, reuse its exact name.
+        Never return duplicate exercise names. If an exercise matches the current workout or the library, reuse its exact name and exerciseType.
         For new exercises, follow the naming style of the existing library (e.g., if "Tricep Pushdown - Cable, Straight Bar" exists, a rope variation should be "Tricep Pushdown - Cable, Rope").
+        Use supersetGroupId (integer) to group exercises into supersets — exercises with the same ID are performed back-to-back. Use null for standalone exercises. Superset exercises must be adjacent. Preserve existing supersetGroupId groupings unless the user asks to change them.
 
         \(currentWorkout != nil ? "The user has an existing workout. Modify it based on their request — keep exercises they didn't mention, adjust what they asked about." : "Create a new workout from scratch based on the user's request.")
         \(isActiveWorkout ? "\nIMPORTANT: This workout is in progress. Sets marked COMPLETED in the progress below cannot be changed. You MUST include them exactly as-is in your response. Only modify PLANNED sets and exercises." : "")
@@ -106,7 +115,7 @@ struct ChatAIService {
         Goals: \(profile.goals.isEmpty ? "Not specified" : profile.goals)
         Equipment: \(profile.equipment.isEmpty ? "Not specified" : profile.equipment)
         Injuries: \(profile.injuries.isEmpty ? "None" : profile.injuries)
-        \(exercises.isEmpty ? "" : "\nExercise library (use exact names when referencing these):\n\(Dictionary(grouping: exercises, by: \.muscleGroup).map { "\($0.key): \($0.value.map(\.name).joined(separator: ", "))" }.joined(separator: "\n"))")
+        \(exercises.isEmpty ? "" : "\nExercise library (use exact names when referencing these):\n\(Dictionary(grouping: exercises, by: \.muscleGroup).map { group in "\(group.key): \(group.value.map { ex in ex.exerciseType == .weightReps ? ex.name : "\(ex.name) [\(ex.exerciseType.rawValue)]" }.joined(separator: ", "))" }.joined(separator: "\n"))")
         """
 
         var userMessage = message

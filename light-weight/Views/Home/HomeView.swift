@@ -164,7 +164,8 @@ struct HomeView: View {
                 profile: profileSnapshot,
                 recentLogs: logSnapshots,
                 exercises: exerciseSnapshots,
-                healthContext: healthContext
+                healthContext: healthContext,
+                onCost: { [appState] cost in appState.recordCost(cost) }
             )
             todayWorkout = workout
             WorkoutCacheService.save(workout)
@@ -196,7 +197,8 @@ struct HomeView: View {
                 currentWorkout: todayWorkout,
                 profile: profileSnapshot,
                 exercises: exercises.map { ExerciseSnapshot(from: $0) },
-                history: history
+                history: history,
+                onCost: { [appState] cost in appState.recordCost(cost) }
             )
 
             return AsyncThrowingStream { continuation in

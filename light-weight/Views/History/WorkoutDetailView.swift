@@ -7,8 +7,12 @@ struct WorkoutDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 statsHeader
-                ForEach(Array(log.entries.enumerated()), id: \.element.id) { _, entry in
-                    exerciseSection(entry)
+                ForEach(Array(log.entries.entryGroups.enumerated()), id: \.offset) { _, group in
+                    if group.count > 1 {
+                        supersetGroupSection(group)
+                    } else if let first = group.first {
+                        exerciseSection(first.entry)
+                    }
                 }
             }
             .padding(.bottom, 20)
@@ -37,6 +41,29 @@ struct WorkoutDetailView: View {
         }
     }
 
+    // MARK: - Superset Group
+
+    private func supersetGroupSection(_ entries: [(flatIndex: Int, entry: LogEntry)]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("SUPERSET")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.0)
+                .foregroundStyle(Color.accent)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, -4)
+
+            ForEach(entries, id: \.entry.id) { _, entry in
+                exerciseSection(entry)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.accent.opacity(0.05))
+                .padding(.horizontal, 8)
+        )
+    }
+
     // MARK: - Exercise Section
 
     private func exerciseSection(_ entry: LogEntry) -> some View {
@@ -62,8 +89,19 @@ struct WorkoutDetailView: View {
                     .frame(width: 40, alignment: .leading)
                 Text("LBS")
                     .frame(width: 72, alignment: .leading)
-                Text("REPS")
-                    .frame(width: 64, alignment: .leading)
+                switch entry.exerciseType {
+                case .weightReps:
+                    Text("REPS")
+                        .frame(width: 64, alignment: .leading)
+                case .timed:
+                    Text("TIME")
+                        .frame(width: 64, alignment: .leading)
+                case .timedDistance:
+                    Text("TIME")
+                        .frame(width: 64, alignment: .leading)
+                    Text("DIST")
+                        .frame(width: 64, alignment: .leading)
+                }
                 Text("RPE")
                     .frame(width: 48, alignment: .leading)
                 Spacer()
@@ -86,9 +124,23 @@ struct WorkoutDetailView: View {
                             .font(.system(size: 14, weight: .medium))
                             .frame(width: 72, alignment: .leading)
 
-                        Text("\(set.reps)")
-                            .font(.system(size: 14, weight: .medium))
-                            .frame(width: 64, alignment: .leading)
+                        switch entry.exerciseType {
+                        case .weightReps:
+                            Text("\(set.reps)")
+                                .font(.system(size: 14, weight: .medium))
+                                .frame(width: 64, alignment: .leading)
+                        case .timed:
+                            Text(set.durationSeconds.map { "\($0)s" } ?? "—")
+                                .font(.system(size: 14, weight: .medium))
+                                .frame(width: 64, alignment: .leading)
+                        case .timedDistance:
+                            Text(set.durationSeconds.map { "\($0)s" } ?? "—")
+                                .font(.system(size: 14, weight: .medium))
+                                .frame(width: 64, alignment: .leading)
+                            Text(set.distanceMeters.map { $0.formattedDistance } ?? "—")
+                                .font(.system(size: 14, weight: .medium))
+                                .frame(width: 64, alignment: .leading)
+                        }
 
                         Text("\(set.rpe)")
                             .font(.system(size: 14, weight: .medium))

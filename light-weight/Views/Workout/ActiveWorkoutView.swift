@@ -50,8 +50,12 @@ struct ActiveWorkoutView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     headerSection(viewModel: viewModel)
 
-                    ForEach(Array(viewModel.entries.enumerated()), id: \.element.id) { exerciseIndex, entry in
-                        exerciseSection(viewModel: viewModel, exerciseIndex: exerciseIndex, entry: entry)
+                    ForEach(Array(viewModel.entryGroups.enumerated()), id: \.offset) { _, group in
+                        if group.count > 1 {
+                            supersetGroupSection(viewModel: viewModel, entries: group)
+                        } else if let first = group.first {
+                            exerciseSection(viewModel: viewModel, exerciseIndex: first.flatIndex, entry: first.entry)
+                        }
                     }
 
                     cancelButton(viewModel: viewModel)
@@ -207,6 +211,29 @@ struct ActiveWorkoutView: View {
         }
     }
 
+    // MARK: - Superset Group
+
+    private func supersetGroupSection(viewModel: ActiveWorkoutViewModel, entries: [(flatIndex: Int, entry: LogEntry)]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("SUPERSET")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.0)
+                .foregroundStyle(Color.accent)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, -4)
+
+            ForEach(entries, id: \.entry.id) { flatIndex, entry in
+                exerciseSection(viewModel: viewModel, exerciseIndex: flatIndex, entry: entry)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.accent.opacity(0.05))
+                .padding(.horizontal, 8)
+        )
+    }
+
     // MARK: - Exercise Section
 
     private func exerciseSection(viewModel: ActiveWorkoutViewModel, exerciseIndex: Int, entry: LogEntry) -> some View {
@@ -233,8 +260,19 @@ struct ActiveWorkoutView: View {
                     .frame(width: 40, alignment: .leading)
                 Text("LBS")
                     .frame(maxWidth: .infinity)
-                Text("REPS")
-                    .frame(maxWidth: .infinity)
+                switch entry.exerciseType {
+                case .weightReps:
+                    Text("REPS")
+                        .frame(maxWidth: .infinity)
+                case .timed:
+                    Text("TIME")
+                        .frame(maxWidth: .infinity)
+                case .timedDistance:
+                    Text("TIME")
+                        .frame(maxWidth: .infinity)
+                    Text("DIST")
+                        .frame(maxWidth: .infinity)
+                }
                 Text("RPE")
                     .frame(width: 48, alignment: .center)
                 Color.clear
@@ -250,6 +288,7 @@ struct ActiveWorkoutView: View {
                 ForEach(Array(entry.sets.enumerated()), id: \.element.id) { setIndex, set in
                     let workingSetNumber = entry.sets.prefix(setIndex).filter { !$0.isWarmup }.count + 1
                     SetRowView(
+                        exerciseType: entry.exerciseType,
                         setNumber: workingSetNumber,
                         logSet: set,
                         plannedSet: viewModel.plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
@@ -257,11 +296,11 @@ struct ActiveWorkoutView: View {
                         isUpdating: viewModel.updatedSetKeys.contains("\(exerciseIndex)-\(setIndex)"),
                         isAdjusting: viewModel.isAdjusting,
                         adjustmentFailed: viewModel.adjustmentFailed,
-                        onLog: { weight, reps, rpe in
-                            viewModel.logSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe)
+                        onLog: { weight, reps, rpe, duration, distance in
+                            viewModel.logSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe, durationSeconds: duration, distanceMeters: distance)
                         },
-                        onEdit: { weight, reps, rpe in
-                            viewModel.editSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe)
+                        onEdit: { weight, reps, rpe, duration, distance in
+                            viewModel.editSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe, durationSeconds: duration, distanceMeters: distance)
                         }
                     )
                     if setIndex < entry.sets.count - 1 {
@@ -334,7 +373,8 @@ struct ActiveWorkoutView: View {
             await ExerciseLibraryService.resolveAndPersistNewExercises(
                 entries: log.entries,
                 apiKey: apiKey,
-                modelContext: modelContext
+                modelContext: modelContext,
+                onCost: { [appState] cost in appState.recordCost(cost) }
             )
 
             // Backfill targetMuscles on the log's entries so the muscle map works
@@ -373,7 +413,8 @@ struct ActiveWorkoutView: View {
                 profile: profileSnapshot,
                 exercises: exercises.map { ExerciseSnapshot(from: $0) },
                 history: history,
-                progress: viewModel.entries
+                progress: viewModel.entries,
+                onCost: { [appState] cost in appState.recordCost(cost) }
             )
 
             // Wrap to intercept results and apply workout changes
