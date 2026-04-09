@@ -5,96 +5,88 @@ private let logger = Logger(subsystem: "com.light-weight", category: "RPEAdjustm
 
 struct RPEAdjustmentService {
 
-    /// Sends the full workout state to Claude to get holistic adjustments
-    /// based on RPE data across all exercises (fatigue transfer, etc.).
-    /// Returns an adjusted workout, or nil if the call fails.
-    static func adjustWorkout(
+    /// Adjusts the remaining planned sets for a single exercise based on RPE data.
+    /// `completedExercise` provides the progress for the exercise being adjusted.
+    /// `fatigueContext` optionally provides a just-finished exercise for fatigue transfer (last-set case).
+    /// Returns adjusted planned sets, or nil if the call fails.
+    static func adjustExerciseSets(
         apiKey: String,
-        workout: Workout,
-        progress: [LogEntry],
+        exercise: WorkoutExercise,
+        completedExercise: LogEntry,
+        fatigueContext: LogEntry? = nil,
         onCost: @Sendable @escaping (TokenCost) -> Void = { _ in }
-    ) async -> Workout? {
+    ) async -> [WorkoutSet]? {
         let api = ClaudeAPIService(apiKey: apiKey, onCost: onCost)
-        let completedSetCount = progress.flatMap(\.sets).filter { $0.completedAt != nil }.count
+        let completedSetCount = completedExercise.sets.filter { $0.completedAt != nil }.count
         logger.info(
-            "rpe_adjustment start exercises=\(workout.exercises.count, privacy: .public) completedSets=\(completedSetCount, privacy: .public)"
+            "rpe_adjustment start exercise=\(exercise.name, privacy: .public) completedSets=\(completedSetCount, privacy: .public)"
         )
+
+        let fatigueNote = fatigueContext.map { ctx in
+            """
+
+            The user just finished this exercise before starting \(exercise.name). \
+            Consider fatigue transfer when adjusting:
+            \(ctx.exerciseName) (\(ctx.muscleGroup)):
+            \([ctx].formattedProgress())
+            """
+        } ?? ""
 
         let systemPrompt = """
         You are an expert strength coach making real-time adjustments to a workout in progress.
 
         The user just logged a set with their RPE (rate of perceived exertion, 1-10 scale). \
-        Analyze the RPE data across ALL completed sets and adjust the REMAINING planned sets.
+        Adjust ONLY the remaining planned sets for this exercise.
 
         Consider:
         - If actual RPE is higher than target, the weight is too heavy, reps are too high, or rest is too short
         - If actual RPE is lower than target, the weight is too light, reps are too low, or rest is too long
-        - Fatigue transfer between exercises — e.g. heavy bench press fatigues triceps for later pushdowns
         - Cumulative fatigue — RPE naturally climbs across sets, but a big jump signals a problem
         - Adjust weight, reps, rest, and targetRpe for remaining planned sets as needed
-        - Keep completed sets EXACTLY as they appear — do not modify them
 
-        Respond with ONLY the adjusted workout JSON, no explanation. Use this exact schema:
-        {
-          "name": "Workout Name",
-          "exercises": [
-            {
-              "name": "Exercise Name",
-              "muscleGroup": "Muscle Group",
-              "exerciseType": "weightReps",
-              "supersetGroupId": null,
-              "sets": [
-                { "reps": 8, "weight": 135, "restSeconds": 90, "targetRpe": 8, "isWarmup": false }
-              ]
-            }
-          ]
-        }
+        Respond with ONLY a JSON array of the adjusted PLANNED sets (do not include completed sets). Schema:
+        [
+          { "reps": 8, "weight": 135, "restSeconds": 90, "targetRpe": 8, "isWarmup": false }
+        ]
 
-        Exercise types: "weightReps" (weight+reps), "timed" (durationSeconds + optional weight), "timedDistance" (durationSeconds + distanceMeters + optional weight).
+        Exercise type: "\(exercise.exerciseType.rawValue)".
         For timed exercises, adjust durationSeconds instead of reps. Keep exerciseType unchanged.
 
-        Rules for adjustments:
-        - Preserve supersetGroupId values exactly as they appear. Do not change groupings during RPE adjustments.
-        - Preserve the isWarmup flag on all sets. Do not convert warmup sets to working sets or vice versa.
-        - Preserve the exerciseType on all exercises. Do not change exercise types.
+        Rules:
+        - Preserve the isWarmup flag on all sets
         - Weight changes should use real plate increments (2.5 lb minimum)
         - Rest range: 30-300 seconds
         - Reps minimum: 1 (for weightReps), durationSeconds minimum: 5 (for timed)
-        - If all RPEs are on target, return the workout unchanged
+        - If all RPEs are on target, return the sets unchanged
         - Be conservative — small adjustments are better than dramatic ones
-        - Never return duplicate exercise names. If an exercise matches the current workout, reuse its exact name.
         """
 
-        guard let workoutJSON = try? JSONEncoder().encode(workout),
-              let workoutStr = String(data: workoutJSON, encoding: .utf8) else {
-            return nil
-        }
-
         let userMessage = """
-        Current workout plan:
-        \(workoutStr)
+        Exercise: \(exercise.name) (\(exercise.muscleGroup))
 
         Progress:
-        \(progress.formattedProgress())
+        \([completedExercise].formattedProgress())
+
+        Planned sets to adjust:
+        \(exercise.sets.dropFirst(completedSetCount).enumerated().map { i, s in
+            "Set \(completedSetCount + i + 1): \(s.weight)lbs x \(s.reps) @targetRPE \(s.targetRpe ?? 0) rest \(s.restSeconds)s"
+        }.joined(separator: "\n"))
+        \(fatigueNote)
         """
 
         do {
             let response = try await api.send(
-                operation: "adjust_rpe_workout",
+                operation: "adjust_rpe_exercise",
                 systemPrompt: systemPrompt,
                 userMessage: userMessage
             )
-            let jsonString = JSONExtractor.extractObject(from: response)
+            let jsonString = JSONExtractor.extractArray(from: response)
             guard let data = jsonString.data(using: .utf8) else { return nil }
-            let adjustedWorkout = try JSONDecoder().decode(Workout.self, from: data)
-            let totalSets = adjustedWorkout.exercises.reduce(0) { $0 + $1.sets.count }
+            let adjustedSets = try JSONDecoder().decode([WorkoutSet].self, from: data)
             logger.info(
-                "rpe_adjustment success exercises=\(adjustedWorkout.exercises.count, privacy: .public) totalSets=\(totalSets, privacy: .public)"
+                "rpe_adjustment success exercise=\(exercise.name, privacy: .public) adjustedSets=\(adjustedSets.count, privacy: .public)"
             )
-            return ExerciseNameResolver.canonicalize(
-                workout: adjustedWorkout,
-                references: workout.exercises.map(ExerciseReference.init)
-            )
+            return adjustedSets
         } catch {
             logger.error("RPE adjustment failed: \(error)")
             return nil
