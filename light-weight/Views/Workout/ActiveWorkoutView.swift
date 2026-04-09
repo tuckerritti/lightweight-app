@@ -294,8 +294,8 @@ struct ActiveWorkoutView: View {
                         plannedSet: viewModel.plannedSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
                         isActive: viewModel.isActiveSet(exerciseIndex: exerciseIndex, setIndex: setIndex),
                         isUpdating: viewModel.updatedSetKeys.contains("\(exerciseIndex)-\(setIndex)"),
-                        isAdjusting: viewModel.isAdjusting,
-                        adjustmentFailed: viewModel.adjustmentFailed,
+                        isAdjusting: viewModel.adjustingExercises.contains(exerciseIndex),
+                        adjustmentFailed: viewModel.failedAdjustmentExercises.contains(exerciseIndex),
                         onLog: { weight, reps, rpe, duration, distance in
                             viewModel.logSet(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: weight, reps: reps, rpe: rpe, durationSeconds: duration, distanceMeters: distance)
                         },

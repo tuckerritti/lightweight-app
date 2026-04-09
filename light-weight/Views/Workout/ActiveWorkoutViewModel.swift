@@ -18,9 +18,8 @@ final class ActiveWorkoutViewModel {
     var apiKey: String = ""
     weak var appState: AppState?
     @ObservationIgnored var onCost: @Sendable (TokenCost) -> Void
-    private var adjustingCount = 0
-    var isAdjusting: Bool { adjustingCount > 0 }
-    var adjustmentFailed = false
+    var adjustingExercises: Set<Int> = []
+    var failedAdjustmentExercises: Set<Int> = []
     var updatedSetKeys: Set<String> = []
     private var latestClaimedVersion = 0
 
@@ -217,7 +216,7 @@ final class ActiveWorkoutViewModel {
         )
 
         if !apiKey.isEmpty && missedTarget {
-            requestRPEAdjustment()
+            requestRPEAdjustment(exerciseIndex: exerciseIndex, setIndex: setIndex)
         }
     }
 
@@ -266,46 +265,95 @@ final class ActiveWorkoutViewModel {
         return true
     }
 
-    private func requestRPEAdjustment() {
-        let key = apiKey
-        let workout = currentWorkout
-        let progress = entries
-        let version = claimNextMutationVersion()
-        adjustmentFailed = false
-        adjustingCount += 1
+    private func requestRPEAdjustment(exerciseIndex: Int, setIndex: Int) {
+        let isLastSet = entries[exerciseIndex].sets.dropFirst(setIndex + 1).allSatisfy { $0.completedAt != nil }
+            || setIndex == entries[exerciseIndex].sets.count - 1
 
-        debugActiveWorkoutLog("Starting auto-RPE adjustment version=\(version) completedSets=\(self.completedSets)")
+        let targetIndex: Int
+        var fatigueContext: LogEntry?
+
+        if isLastSet {
+            // Last set of exercise — adjust the next exercise (fatigue transfer)
+            guard let nextIndex = (exerciseIndex + 1 ..< entries.count)
+                .first(where: { entries[$0].sets.contains { $0.completedAt == nil } }) else {
+                return // No upcoming exercise to adjust
+            }
+            targetIndex = nextIndex
+            fatigueContext = entries[exerciseIndex]
+        } else {
+            // Mid-exercise — adjust remaining sets of this exercise
+            targetIndex = exerciseIndex
+        }
+
+        let key = apiKey
+        let exercise = workoutExercises[targetIndex]
+        let completedEntry = entries[targetIndex]
+        let version = claimNextMutationVersion()
+        failedAdjustmentExercises.remove(targetIndex)
+        adjustingExercises.insert(targetIndex)
+
+        debugActiveWorkoutLog("Starting scoped RPE adjustment version=\(version) target=\(targetIndex)")
         logger.info(
-            "rpe_adjustment request version=\(version, privacy: .public) completedSets=\(self.completedSets, privacy: .public)"
+            "rpe_adjustment request version=\(version, privacy: .public) targetExercise=\(exercise.name, privacy: .public)"
         )
 
         Task {
             defer {
-                adjustingCount = max(0, adjustingCount - 1)
-                debugActiveWorkoutLog("Ending auto-RPE adjustment version=\(version)")
+                adjustingExercises.remove(targetIndex)
+                debugActiveWorkoutLog("Ending scoped RPE adjustment version=\(version)")
             }
 
-            if let adjusted = await RPEAdjustmentService.adjustWorkout(
+            if let adjustedSets = await RPEAdjustmentService.adjustExerciseSets(
                 apiKey: key,
-                workout: workout,
-                progress: progress,
+                exercise: exercise,
+                completedExercise: completedEntry,
+                fatigueContext: fatigueContext,
                 onCost: onCost
             ) {
-                if tryApplyModifiedWorkout(adjusted, expectedVersion: version) {
-                    debugActiveWorkoutLog("Applying auto-RPE adjustment version=\(version)")
-                    logger.info(
-                        "rpe_adjustment apply_success version=\(version, privacy: .public) exercises=\(adjusted.exercises.count, privacy: .public) totalSets=\(adjusted.totalSets, privacy: .public)"
-                    )
-                } else {
+                guard version == latestClaimedVersion else {
                     logger.info("rpe_adjustment discard_stale version=\(version, privacy: .public)")
+                    return
                 }
+                applyScopedAdjustment(exerciseIndex: targetIndex, adjustedSets: adjustedSets)
+                debugActiveWorkoutLog("Applied scoped RPE adjustment version=\(version)")
+                logger.info(
+                    "rpe_adjustment apply_success version=\(version, privacy: .public) exercise=\(exercise.name, privacy: .public) sets=\(adjustedSets.count, privacy: .public)"
+                )
             } else {
-                triggerAdjustmentFailure(expectedVersion: version)
+                triggerAdjustmentFailure(expectedVersion: version, exerciseIndex: targetIndex)
             }
         }
     }
 
-    private func triggerAdjustmentFailure(expectedVersion version: Int) {
+    private func applyScopedAdjustment(exerciseIndex: Int, adjustedSets: [WorkoutSet]) {
+        guard exerciseIndex < entries.count, exerciseIndex < workoutExercises.count else { return }
+
+        let completedSets = completedPrefix(from: entries[exerciseIndex].sets)
+
+        // Update workoutExercises — keep completed sets, replace planned with adjusted
+        workoutExercises[exerciseIndex].sets = workoutExercises[exerciseIndex].sets.prefix(completedSets.count) + adjustedSets
+
+        // Update entries — keep completed LogSets, replace planned with adjusted
+        let newLogSets = adjustedSets.map { s in
+            LogSet(reps: s.reps, weight: s.weight, rpe: s.targetRpe ?? 0, isWarmup: s.isWarmup, durationSeconds: s.durationSeconds, distanceMeters: s.distanceMeters)
+        }
+        entries[exerciseIndex].sets = completedSets + newLogSets
+
+        // Flag adjusted sets for animation
+        var keys: Set<String> = []
+        for setIndex in completedSets.count ..< entries[exerciseIndex].sets.count {
+            keys.insert("\(exerciseIndex)-\(setIndex)")
+        }
+        updatedSetKeys = keys
+        Task {
+            try? await Task.sleep(for: .seconds(0.8))
+            updatedSetKeys = []
+        }
+
+        resyncTimerIfNeeded()
+    }
+
+    private func triggerAdjustmentFailure(expectedVersion version: Int, exerciseIndex: Int) {
         guard version == latestClaimedVersion else {
             logger.info("rpe_adjustment discard_stale_failure version=\(version, privacy: .public)")
             return
@@ -313,11 +361,11 @@ final class ActiveWorkoutViewModel {
 
         debugActiveWorkoutLog("Auto-RPE adjustment failed version=\(version)")
         logger.warning("rpe_adjustment failure version=\(version, privacy: .public)")
-        adjustmentFailed = true
+        failedAdjustmentExercises.insert(exerciseIndex)
         Task {
             try? await Task.sleep(for: .seconds(2.5))
             guard version == latestClaimedVersion else { return }
-            adjustmentFailed = false
+            failedAdjustmentExercises.remove(exerciseIndex)
         }
     }
 
