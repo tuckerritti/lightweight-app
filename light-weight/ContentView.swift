@@ -103,7 +103,6 @@ final class AppState {
 
 struct ContentView: View {
     @State private var appState = AppState()
-    @State private var isRestoring = true
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Query private var profiles: [UserProfile]
@@ -114,22 +113,12 @@ struct ContentView: View {
     }
 
     private var currentRoute: String {
-        if isRestoring { return "restoring" }
-        return needsOnboarding ? "onboarding" : "home"
+        needsOnboarding ? "onboarding" : "home"
     }
 
     var body: some View {
         Group {
-            if isRestoring {
-                Color(hex: 0x0A0A0A)
-                    .ignoresSafeArea()
-                    .task {
-                        contentViewLogger.info("restore start")
-                        await ICloudBackupService.restoreIfNeeded(modelContext: modelContext)
-                        isRestoring = false
-                        contentViewLogger.info("restore success")
-                    }
-            } else if needsOnboarding {
+            if needsOnboarding {
                 OnboardingView()
                     .environment(appState)
             } else {
@@ -142,6 +131,11 @@ struct ContentView: View {
                         }
                     }
             }
+        }
+        .task {
+            contentViewLogger.info("restore start")
+            await ICloudBackupService.restoreIfNeeded(modelContext: modelContext)
+            contentViewLogger.info("restore success")
         }
         .task(id: currentRoute) {
             let onboardingCompleted = profiles.first?.onboardingCompleted ?? false
