@@ -226,7 +226,7 @@ enum CSVImportService {
                 }
 
                 let sets: [LogSet] = rows.map { row in
-                    let durationSeconds = value(row, index[.duration]).flatMap { Int(Double($0) ?? 0) }
+                    let durationSeconds = value(row, index[.duration]).flatMap { Double($0) }.map { Int($0) }
                     let distanceMeters = value(row, index[.distance]).flatMap { Double($0) }
                     return LogSet(
                         reps: Int(Double(value(row, index[.reps]) ?? "0") ?? 0),
@@ -262,6 +262,13 @@ enum CSVImportService {
             guard knownNames.insert(normalizedName).inserted else { continue }
             modelContext.insert(Exercise(name: trimmedName, muscleGroup: muscleGroup))
             newExerciseCount += 1
+        }
+
+        // Commit the imported logs/exercises now rather than waiting on autosave.
+        do {
+            try modelContext.save()
+        } catch {
+            logger.error("csv_import save_failure error=\(String(describing: error), privacy: .public)")
         }
 
         logger.info(

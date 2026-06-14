@@ -271,6 +271,11 @@ struct ChatDrawerView: View {
         let history = messages.dropLast().filter { !$0.isError }
         guard let stream = await onSend(text, history) else {
             logger.info("chat_drawer stream_unavailable")
+            messages.append(ChatMessage(
+                role: .assistant,
+                text: "Add your Anthropic API key in Settings to chat with your coach.",
+                isError: true
+            ))
             isSending = false
             return
         }

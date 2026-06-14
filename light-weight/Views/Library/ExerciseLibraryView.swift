@@ -183,10 +183,11 @@ struct ExerciseLibraryView: View {
                         .foregroundStyle(Color.textHeading)
 
                     if let stats, stats.timesPerformed > 0 {
+                        let timesLabel = stats.timesPerformed == 1 ? "1 time" : "\(stats.timesPerformed) times"
                         Text(
                             stats.bestWeight > 0
-                                ? "\(stats.timesPerformed) times · Best: \(Int(stats.bestWeight)) lbs"
-                                : "\(stats.timesPerformed) times"
+                                ? "\(timesLabel) · Best: \(Int(stats.bestWeight)) lbs"
+                                : timesLabel
                         )
                         .font(.system(size: 12))
                         .foregroundStyle(Color.textMuted)
@@ -210,6 +211,7 @@ private struct AddExerciseSheet: View {
     @Query private var exercises: [Exercise]
     @State private var name = ""
     @State private var muscleGroup = ""
+    @State private var exerciseType: ExerciseType = .weightReps
 
     private let commonGroups = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Quads", "Hamstrings", "Glutes", "Calves", "Core", "Forearms"]
 
@@ -224,6 +226,15 @@ private struct AddExerciseSheet: View {
         NavigationStack {
             Form {
                 TextField("Exercise name", text: $name)
+                Section("Type") {
+                    Picker("Type", selection: $exerciseType) {
+                        Text("Weight × Reps").tag(ExerciseType.weightReps)
+                        Text("Timed").tag(ExerciseType.timed)
+                        Text("Timed + Distance").tag(ExerciseType.timedDistance)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
                 Section("Muscle Group") {
                     TextField("Or type your own...", text: $muscleGroup)
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -256,7 +267,8 @@ private struct AddExerciseSheet: View {
                         }) else {
                             return
                         }
-                        modelContext.insert(Exercise(name: trimmedName, muscleGroup: trimmedGroup))
+                        modelContext.insert(Exercise(name: trimmedName, muscleGroup: trimmedGroup, exerciseType: exerciseType))
+                        try? modelContext.save()
                         dismiss()
                     }
                     .disabled(

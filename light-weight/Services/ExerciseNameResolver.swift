@@ -3,11 +3,13 @@ import Foundation
 struct ExerciseReference {
     var name: String
     var muscleGroup: String
+    var exerciseType: ExerciseType?
     var targetMuscles: [TargetMuscle]
 
-    init(name: String, muscleGroup: String, targetMuscles: [TargetMuscle] = []) {
+    init(name: String, muscleGroup: String, exerciseType: ExerciseType? = nil, targetMuscles: [TargetMuscle] = []) {
         self.name = name
         self.muscleGroup = muscleGroup
+        self.exerciseType = exerciseType
         self.targetMuscles = targetMuscles
     }
 
@@ -15,6 +17,7 @@ struct ExerciseReference {
         self.init(
             name: exercise.name,
             muscleGroup: exercise.muscleGroup,
+            exerciseType: exercise.exerciseType,
             targetMuscles: exercise.targetMuscles
         )
     }
@@ -23,6 +26,7 @@ struct ExerciseReference {
         self.init(
             name: exercise.name,
             muscleGroup: exercise.muscleGroup,
+            exerciseType: exercise.exerciseType,
             targetMuscles: exercise.targetMuscles
         )
     }
@@ -31,6 +35,7 @@ struct ExerciseReference {
         self.init(
             name: exercise.name,
             muscleGroup: exercise.muscleGroup,
+            exerciseType: exercise.exerciseType,
             targetMuscles: exercise.targetMuscles
         )
     }
@@ -39,6 +44,7 @@ struct ExerciseReference {
         self.init(
             name: entry.exerciseName,
             muscleGroup: entry.muscleGroup,
+            exerciseType: entry.exerciseType,
             targetMuscles: entry.targetMuscles
         )
     }
@@ -137,6 +143,7 @@ enum ExerciseNameResolver {
             return WorkoutExercise(
                 name: trimmedName,
                 muscleGroup: trimmedGroup,
+                exerciseType: exercise.exerciseType,
                 targetMuscles: exercise.targetMuscles,
                 sets: exercise.sets,
                 supersetGroupId: exercise.supersetGroupId
@@ -146,6 +153,7 @@ enum ExerciseNameResolver {
         return WorkoutExercise(
             name: reference.name,
             muscleGroup: reference.muscleGroup,
+            exerciseType: reference.exerciseType ?? exercise.exerciseType,
             targetMuscles: reference.targetMuscles.isEmpty ? exercise.targetMuscles : reference.targetMuscles,
             sets: exercise.sets,
             supersetGroupId: exercise.supersetGroupId

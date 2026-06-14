@@ -17,6 +17,7 @@ struct NumericTextField: UIViewRepresentable {
         field.font = .systemFont(ofSize: 14, weight: .medium)
         field.delegate = context.coordinator
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.addTarget(context.coordinator, action: #selector(Coordinator.selectAllOnFocus(_:)), for: .editingDidBegin)
 
         return field
     }
@@ -48,6 +49,14 @@ struct NumericTextField: UIViewRepresentable {
         func textFieldShouldReturn(_ textField: UITextField) -> Bool {
             textField.resignFirstResponder()
             return true
+        }
+
+        // Pre-filled values are usually replaced wholesale when logging a set,
+        // so select everything on focus to let the user type straight over.
+        @objc func selectAllOnFocus(_ field: UITextField) {
+            DispatchQueue.main.async {
+                field.selectAll(nil)
+            }
         }
     }
 }

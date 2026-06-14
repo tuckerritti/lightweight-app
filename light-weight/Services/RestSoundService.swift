@@ -124,7 +124,8 @@ final class RestSoundService: NSObject, AVAudioPlayerDelegate {
     // MARK: - AVAudioPlayerDelegate
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        MainActor.assumeIsolated {
+        // Delegate thread isn't guaranteed — hop to the main actor instead of assuming it.
+        Task { @MainActor in
             // Switch back to mixWithOthers so music volume restores immediately
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .mixWithOthers)
         }

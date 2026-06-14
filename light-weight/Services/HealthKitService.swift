@@ -34,10 +34,10 @@ final class HealthKitService: Sendable {
         }
 
         let readTypes: Set<HKObjectType> = [
-            HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
-            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
-            HKObjectType.quantityType(forIdentifier: .restingHeartRate)!,
-            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+            HKCategoryType(.sleepAnalysis),
+            HKQuantityType(.heartRateVariabilitySDNN),
+            HKQuantityType(.restingHeartRate),
+            HKQuantityType(.activeEnergyBurned),
         ]
 
         logger.info("healthkit_authorization start readTypes=\(readTypes.count, privacy: .public)")

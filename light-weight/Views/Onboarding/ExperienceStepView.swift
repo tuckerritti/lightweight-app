@@ -55,7 +55,7 @@ struct ExperienceStepView: View {
                                     .foregroundStyle(selected ? Color.buttonPrimaryText : Color.textPrimary)
                                 Text(option.subtitle)
                                     .font(.system(size: 13))
-                                    .foregroundStyle(selected ? Color.white.opacity(0.6) : Color.textSecondary)
+                                    .foregroundStyle(selected ? Color.buttonPrimaryText.opacity(0.6) : Color.textSecondary)
                             }
                             Spacer()
                         }
