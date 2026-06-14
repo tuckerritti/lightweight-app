@@ -75,7 +75,7 @@ struct OnboardingView: View {
         p.gender = gender
         p.experienceLevel = experienceLevel
         p.trainingDays = encodeDays(trainingDays)
-        p.schedule = "\(trainingDays.count) days per week"
+        p.schedule = scheduleDescription()
         p.healthKitEnabled = healthKitEnabled
         p.onboardingCompleted = true
 
@@ -99,6 +99,17 @@ struct OnboardingView: View {
                 "onboarding_complete success createdProfile=\(createdProfile, privacy: .public) apiKeyPresent=\(!apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, privacy: .public)"
             )
         }
+    }
+
+    private func scheduleDescription() -> String {
+        let dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        let days = trainingDays.sorted()
+            .compactMap { dayNames.indices.contains($0) ? dayNames[$0] : nil }
+            .joined(separator: ", ")
+        var schedule = "\(trainingDays.count) days per week"
+        if !days.isEmpty { schedule += " (\(days))" }
+        if !selectedSplit.isEmpty { schedule += " — \(selectedSplit) preferred" }
+        return schedule
     }
 
     private func encodeDays(_ days: Set<Int>) -> String {

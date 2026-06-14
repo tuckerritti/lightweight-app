@@ -131,9 +131,10 @@ struct HistoryListView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(Color.textSecondary)
                 } else {
+                    let setsLabel = log.totalSets == 1 ? "1 set" : "\(log.totalSets) sets"
                     Text(log.totalVolume > 0
-                        ? "\(log.totalSets) sets · \(log.durationMinutes) min · \(Int(log.totalVolume).formatted()) lbs"
-                        : "\(log.totalSets) sets · \(log.durationMinutes) min")
+                        ? "\(setsLabel) · \(log.durationMinutes) min · \(Int(log.totalVolume).formatted()) lbs"
+                        : "\(setsLabel) · \(log.durationMinutes) min")
                         .font(.system(size: 13))
                         .foregroundStyle(Color.textSecondary)
                 }

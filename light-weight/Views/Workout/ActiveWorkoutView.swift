@@ -85,7 +85,7 @@ struct ActiveWorkoutView: View {
                 Button("Done") {
                     showNativeAlert(
                         title: "Finish Workout?",
-                        message: "Save your workout with \(viewModel.completedSets) sets completed?",
+                        message: "Save your workout with \(viewModel.completedSets) \(viewModel.completedSets == 1 ? "set" : "sets") completed?",
                         confirmTitle: "Finish",
                         isDestructive: false
                     ) { finishWorkout(viewModel: viewModel) }
@@ -362,6 +362,13 @@ struct ActiveWorkoutView: View {
             references: exercises.map(ExerciseReference.init)
         )
         modelContext.insert(log)
+        // Commit immediately — autosave may not flush before the app is killed,
+        // and a finished workout is the one thing the user must never lose.
+        do {
+            try modelContext.save()
+        } catch {
+            logger.error("workout_session finish_save_failure error=\(String(describing: error), privacy: .public)")
+        }
         finishedLog = log
         showingDebrief = true
         logger.info(
@@ -390,6 +397,11 @@ struct ActiveWorkoutView: View {
                 }
             }
             log.entries = updatedEntries
+            do {
+                try modelContext.save()
+            } catch {
+                logger.error("workout_session finish_backfill_save_failure error=\(String(describing: error), privacy: .public)")
+            }
             logger.info("workout_session finish_backfill_success entries=\(updatedEntries.count, privacy: .public)")
         }
     }

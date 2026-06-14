@@ -61,7 +61,7 @@ struct ClaudeAPIService: Sendable {
                 messages,
                 model: .custom(Self.modelName),
                 system: [.text(systemPrompt, nil)],
-                maxTokens: 4096
+                maxTokens: 8192
             )
 
             let cost = TokenCost(
@@ -107,7 +107,7 @@ struct ClaudeAPIService: Sendable {
                 messages,
                 model: .custom(Self.modelName),
                 system: [.text(systemPrompt, nil)],
-                maxTokens: 4096
+                maxTokens: 8192
             )
 
             return AsyncThrowingStream { continuation in

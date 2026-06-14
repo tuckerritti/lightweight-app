@@ -68,6 +68,7 @@ enum ExerciseLibraryService {
             modelContext.insert(Exercise(
                 name: trimmedName,
                 muscleGroup: entry.muscleGroup,
+                exerciseType: entry.exerciseType,
                 targetMuscles: muscles
             ))
         }

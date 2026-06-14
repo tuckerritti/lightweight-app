@@ -185,7 +185,7 @@ struct SetRowView: View {
 
     @ViewBuilder
     private var completedRow: some View {
-        Text(weightText)
+        Text(weightText.isEmpty ? "BW" : weightText)
             .font(.system(size: 14, weight: .medium))
             .frame(maxWidth: .infinity)
         switch exerciseType {

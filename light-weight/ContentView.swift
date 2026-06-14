@@ -63,6 +63,7 @@ final class AppState {
 
         defaults.removeObject(forKey: "showTokenCost")
         defaults.removeObject(forKey: "showRestTimer")
+        defaults.removeObject(forKey: "showLiveActivity")
         defaults.removeObject(forKey: "dailyCostInput")
         defaults.removeObject(forKey: "dailyCostOutput")
         defaults.removeObject(forKey: "dailyCostDate")
@@ -73,6 +74,7 @@ final class AppState {
         isWorkoutActive = false
         showTokenCost = false
         showRestTimer = true
+        showLiveActivity = false
         dailyCost = .zero
         appStateLogger.info("persistent_state reset_success")
     }

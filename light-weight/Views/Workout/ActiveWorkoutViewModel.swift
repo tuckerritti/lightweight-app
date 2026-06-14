@@ -135,7 +135,7 @@ final class ActiveWorkoutViewModel {
         return next?.exerciseIndex == exerciseIndex && next?.setIndex == setIndex
     }
 
-    private func nextUncompletedSet() -> (exerciseIndex: Int, setIndex: Int)? {
+    func nextUncompletedSet() -> (exerciseIndex: Int, setIndex: Int)? {
         for group in entryGroups {
             if group.count > 1 {
                 // Superset: round-robin through exercises per set round
@@ -180,7 +180,8 @@ final class ActiveWorkoutViewModel {
             workoutExercises[exerciseIndex].sets[setIndex].distanceMeters = distanceMeters
         }
 
-        if let planned, appState?.showRestTimer ?? false {
+        let hasRemainingSets = nextUncompletedSet() != nil
+        if let planned, hasRemainingSets, appState?.showRestTimer ?? false {
             let skipRest = shouldSkipRestForSuperset(exerciseIndex: exerciseIndex)
             if !skipRest {
                 timerService.start(seconds: planned.restSeconds)
@@ -207,7 +208,7 @@ final class ActiveWorkoutViewModel {
             weight != p.weight || reps != p.reps || (p.targetRpe != nil && rpe != p.targetRpe)
         } ?? false
         logger.info(
-            "workout_set complete exerciseIndex=\(exerciseIndex + 1, privacy: .public) setIndex=\(setIndex + 1, privacy: .public) missedTarget=\(missedTarget, privacy: .public) timerStarted=\(planned != nil && (self.appState?.showRestTimer ?? false), privacy: .public) isWarmup=\(isWarmup, privacy: .public) fractionalWeight=\(fractionalWeight, privacy: .public)"
+            "workout_set complete exerciseIndex=\(exerciseIndex + 1, privacy: .public) setIndex=\(setIndex + 1, privacy: .public) missedTarget=\(missedTarget, privacy: .public) timerStarted=\(planned != nil && hasRemainingSets && (self.appState?.showRestTimer ?? false), privacy: .public) isWarmup=\(isWarmup, privacy: .public) fractionalWeight=\(fractionalWeight, privacy: .public)"
         )
 
         debugActiveWorkoutLog(
@@ -475,10 +476,12 @@ final class ActiveWorkoutViewModel {
 
         let remainingSets = Array(newExercise.sets.dropFirst(completedSets.count))
 
+        // Sets are already logged under the existing type — keep it so the
+        // entry and its planned exercise can't diverge if the AI flips the type.
         return WorkoutExercise(
             name: newExercise.name,
             muscleGroup: newExercise.muscleGroup,
-            exerciseType: newExercise.exerciseType,
+            exerciseType: entries[existingIndex].exerciseType,
             targetMuscles: newExercise.targetMuscles,
             sets: actualCompletedSets + remainingSets,
             supersetGroupId: newExercise.supersetGroupId
@@ -523,25 +526,34 @@ final class ActiveWorkoutViewModel {
     }
 
     func activeSetInfo() -> (exerciseName: String, setDescription: String, weightRepsLabel: String)? {
-        for (ei, entry) in entries.enumerated() {
-            for (si, set) in entry.sets.enumerated() {
-                if set.completedAt == nil {
-                    let workingSetsBeforeThis = entry.sets.prefix(si).filter { !$0.isWarmup }.count + 1
-                    let totalWorkingSets = entry.sets.filter { !$0.isWarmup }.count
-                    let setDesc = set.isWarmup ? "Warm-up" : "Set \(workingSetsBeforeThis) of \(totalWorkingSets)"
+        guard let (ei, si) = nextUncompletedSet() else { return nil }
+        let entry = entries[ei]
+        let set = entry.sets[si]
+        let workingSetsBeforeThis = entry.sets.prefix(si).filter { !$0.isWarmup }.count + 1
+        let totalWorkingSets = entry.sets.filter { !$0.isWarmup }.count
+        let setDesc = set.isWarmup ? "Warm-up" : "Set \(workingSetsBeforeThis) of \(totalWorkingSets)"
 
-                    let planned = plannedSet(exerciseIndex: ei, setIndex: si)
-                    let weight = planned?.weight ?? set.weight
-                    let reps = planned?.reps ?? set.reps
-                    let weightLabel = weight.truncatingRemainder(dividingBy: 1) == 0
-                        ? "\(Int(weight))" : String(format: "%.1f", weight)
-                    let label = "\(weightLabel) lbs x \(reps) reps"
+        let planned = plannedSet(exerciseIndex: ei, setIndex: si)
+        let label = activeSetLabel(entry: entry, set: set, planned: planned)
+        return (entry.exerciseName, setDesc, label)
+    }
 
-                    return (entry.exerciseName, setDesc, label)
-                }
-            }
+    private func activeSetLabel(entry: LogEntry, set: LogSet, planned: WorkoutSet?) -> String {
+        let weight = planned?.weight ?? set.weight
+        switch entry.exerciseType {
+        case .weightReps:
+            let reps = planned?.reps ?? set.reps
+            return weight > 0 ? "\(weight.formattedWeight) lbs x \(reps) reps" : "\(reps) reps"
+        case .timed:
+            let duration = planned?.durationSeconds ?? set.durationSeconds ?? 0
+            return weight > 0 ? "\(weight.formattedWeight) lbs · \(duration)s" : "\(duration)s hold"
+        case .timedDistance:
+            let duration = planned?.durationSeconds ?? set.durationSeconds ?? 0
+            let distance = planned?.distanceMeters ?? set.distanceMeters
+            let distanceLabel = distance.map { " · \($0.formattedDistance)" } ?? ""
+            let durationLabel = "\(duration)s\(distanceLabel)"
+            return weight > 0 ? "\(weight.formattedWeight) lbs · \(durationLabel)" : durationLabel
         }
-        return nil
     }
 
     func finish() -> WorkoutLog {

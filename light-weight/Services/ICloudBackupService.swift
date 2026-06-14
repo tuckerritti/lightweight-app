@@ -17,6 +17,7 @@ struct AppBackup: Codable {
 struct ExerciseBackup: Codable {
     var name: String
     var muscleGroup: String
+    var exerciseType: ExerciseType?
     var exerciseDescription: String?
     var instructions: [String]
     var targetMuscles: [TargetMuscle]
@@ -94,6 +95,7 @@ enum ICloudBackupService {
                     ExerciseBackup(
                         name: $0.name,
                         muscleGroup: $0.muscleGroup,
+                        exerciseType: $0.exerciseType,
                         exerciseDescription: $0.exerciseDescription,
                         instructions: $0.instructions,
                         targetMuscles: $0.targetMuscles
@@ -203,6 +205,7 @@ enum ICloudBackupService {
                 modelContext.insert(Exercise(
                     name: ex.name,
                     muscleGroup: ex.muscleGroup,
+                    exerciseType: ex.exerciseType ?? .weightReps,
                     exerciseDescription: ex.exerciseDescription,
                     instructions: ex.instructions,
                     targetMuscles: ex.targetMuscles
@@ -234,6 +237,13 @@ enum ICloudBackupService {
                 if existing == nil {
                     modelContext.insert(target)
                 }
+            }
+
+            // Commit the restored data now rather than waiting on autosave.
+            do {
+                try modelContext.save()
+            } catch {
+                logger.error("icloud_restore save_failure error=\(String(describing: error), privacy: .public)")
             }
 
             logger.info(

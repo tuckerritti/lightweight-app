@@ -46,11 +46,11 @@ SwiftData models are `@MainActor`. To pass them to async services, views create 
 
 ### Navigation
 
-`ContentView` is a `TabView` with three tabs: Home, Exercise Library, History. `AppState` (`@Observable`) manages chat drawer overlay visibility. The chat drawer is presented as an overlay on both Home and ActiveWorkout views.
+`ContentView` routes between onboarding and `HomeView` (after an iCloud restore check on launch). `HomeView` owns a `NavigationStack` with destinations for the Exercise Library, History, Settings, and ActiveWorkout. `AppState` (`@Observable`) holds the active workout view model, chat drawer state, and persisted UI toggles (rest timer, Live Activity, token cost). The chat drawer is presented as an overlay on both Home and ActiveWorkout views.
 
 ### Seed Data
 
-`SeedData.populate(_:)` fills a `ModelContext` with realistic dummy data (10 exercises, 8 workout logs over 4 weeks with progressive overload, 1 user profile). Auto-runs on every DEBUG launch. `ModelContainer.preview` provides an in-memory seeded container for SwiftUI previews.
+`SeedData.populate(_:)` fills a `ModelContext` with realistic dummy data (21 exercises including timed/distance types, 10 workout logs over 4 weeks with progressive overload, 1 user profile). Every DEBUG launch first calls `SeedData.clearAll(_:)` and then re-seeds — user data does NOT persist across DEBUG launches. To test persistence or real new-user flows, build with `--release` (separate bundle id `com.tuckerr.light-weight`, no seeding). `ModelContainer.preview` provides an in-memory seeded container for SwiftUI previews.
 
 ## Key Conventions
 

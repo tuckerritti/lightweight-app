@@ -171,7 +171,13 @@ struct SettingsView: View {
             syncProfileState()
         }
         .onDisappear {
-            apiKeySaveTask?.cancel()
+            // Flush any pending debounced save so a key typed just before
+            // leaving the screen isn't lost.
+            if apiKeySaveTask != nil {
+                apiKeySaveTask?.cancel()
+                apiKeySaveTask = nil
+                persistAPIKey(apiKey)
+            }
         }
     }
 
