@@ -280,6 +280,34 @@ enum JSONExtractor {
         // Fallback: return from first brace to end
         return String(text[openIndex...])
     }
+
+    static func extractArray(from text: String) -> String {
+        guard let openIndex = text.firstIndex(of: "[") else { return text }
+
+        var depth = 0
+        var inString = false
+        var escape = false
+
+        for i in text.indices[openIndex...] {
+            let ch = text[i]
+
+            if escape { escape = false; continue }
+            if ch == "\\" && inString { escape = true; continue }
+            if ch == "\"" { inString.toggle(); continue }
+
+            guard !inString else { continue }
+
+            if ch == "[" { depth += 1 }
+            else if ch == "]" {
+                depth -= 1
+                if depth == 0 {
+                    return String(text[openIndex...i])
+                }
+            }
+        }
+
+        return String(text[openIndex...])
+    }
 }
 
 // MARK: - Sendable snapshots (to cross actor boundaries from @MainActor SwiftData models)
